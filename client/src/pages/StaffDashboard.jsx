@@ -11,7 +11,7 @@ export default function StaffDashboard() {
     try {
       const token = localStorage.getItem("token");
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/appointments`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/appointments`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

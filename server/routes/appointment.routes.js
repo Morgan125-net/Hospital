@@ -2,9 +2,8 @@ const express = require("express");
 const router = express.Router();
 
 const auth = require("../middleware/auth.middleware");
-const role = require("../middleware/role.middleware");
-const Appointment = require("../models/appointment.model");
 const { sendAppointmentSMS } = require("../services/sms.service");
+const Appointment = require("../models/appointment.model");
 
 const departments = {
   "General Doctor": true,
@@ -28,10 +27,8 @@ const validateTime = (time) => {
 };
 
 // ===============================
-// PUBLIC PATIENT ROUTES
+// PUBLIC PATIENT ROUTE
 // ===============================
-
-// Book appointment
 router.post("/", async (req, res) => {
   try {
     const { date, time, department, patientName, phone } = req.body;
@@ -42,7 +39,8 @@ router.post("/", async (req, res) => {
 
     if (!validateTime(time)) {
       return res.status(400).json({
-        message: "Appointments only allowed between 08:00 and 17:00 in 30-minute intervals"
+        message:
+          "Appointments only allowed between 08:00 and 17:00 in 30-minute intervals",
       });
     }
 
@@ -54,14 +52,14 @@ router.post("/", async (req, res) => {
 
     if (selectedDate <= today) {
       return res.status(400).json({
-        message: "Please choose a future working day"
+        message: "Please choose a future working day",
       });
     }
 
     const day = selectedDate.getDay();
     if (day === 0 || day === 6) {
       return res.status(400).json({
-        message: "Appointments are not available on weekends"
+        message: "Appointments are not available on weekends",
       });
     }
 
@@ -69,119 +67,154 @@ router.post("/", async (req, res) => {
       date,
       time,
       department,
-      status: { $ne: "cancelled" }
+      status: { $ne: "cancelled" },
     });
 
     if (conflict) {
       return res.status(409).json({
-        message: "Time slot already booked"
+        message: "Time slot already booked",
       });
     }
 
-    const appointment = new Appointment({
+    const appointment = await Appointment.create({
       referenceId: `HSP-${Date.now()}`,
       patientId: `PAT-${Date.now()}`,
       patientName,
+      email: req.body.email,
+      doctor: req.body.doctor,
       phone,
       department,
       date,
       time,
-      status: "scheduled"
+      message: req.body.message,
+      status: "scheduled",
     });
 
-    await appointment.save();
-
-    await sendAppointmentSMS({
-      phone,
-      patientName,
-      date,
-      time,
-      referenceId: appointment.referenceId,
-    });
+    try {
+      await sendAppointmentSMS({
+        phone,
+        patientName,
+        date,
+        time,
+        referenceId: appointment.referenceId,
+      });
+    } catch {
+      console.log("SMS skipped in presentation mode");
+    }
 
     res.status(201).json({
       success: true,
       message: "Appointment booked successfully",
-      referenceId: appointment.referenceId
+      referenceId: appointment.referenceId,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-
-// Track own booking
-router.post("/track", async (req, res) => {
+// ===============================
+// STAFF / ADMIN ROUTES
+// ===============================
+router.get("/", auth, async (req, res) => {
   try {
-    const { referenceId, phone } = req.body;
+    const appointments = await Appointment.find();
+    res.json(appointments);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
-    const appointment = await Appointment.findOne({
-      referenceId,
-      phone
-    });
+// update appointment status
+router.patch("/:id/status", auth, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const appointment = await Appointment.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    );
 
     if (!appointment) {
-      return res.status(404).json({
-        message: "Appointment not found"
-      });
+      return res.status(404).json({ message: "Appointment not found" });
     }
 
-    res.json(appointment);
-
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.json({
+      success: true,
+      message: "Appointment updated successfully",
+      appointment,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 
+// ===============================
+// PUBLIC PATIENT ACTIONS
+// ===============================
 
-// Cancel own booking
+// Cancel appointment
 router.patch("/cancel", async (req, res) => {
   try {
     const { referenceId, phone } = req.body;
 
-    const appointment = await Appointment.findOne({
-      referenceId,
-      phone
-    });
+    const appointment = await Appointment.findOneAndUpdate(
+      { referenceId, phone },
+      { status: "cancelled" },
+      { new: true }
+    );
 
     if (!appointment) {
       return res.status(404).json({
-        message: "Appointment not found"
+        message: "Appointment not found. Check reference ID and phone number.",
       });
     }
 
-    appointment.status = "cancelled";
-    await appointment.save();
-
     res.json({
-      message: "Appointment cancelled successfully"
+      success: true,
+      message: "Appointment cancelled successfully",
+      referenceId: appointment.referenceId,
     });
-
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 
-
-// Reschedule own booking
+// Reschedule appointment
 router.patch("/reschedule", async (req, res) => {
   try {
     const { referenceId, phone, date, time } = req.body;
 
     if (!validateTime(time)) {
       return res.status(400).json({
-        message: "Invalid time format"
+        message:
+          "Appointments only allowed between 08:00 and 17:00 in 30-minute intervals",
       });
     }
 
-    const appointment = await Appointment.findOne({
-      referenceId,
-      phone
-    });
+    const selectedDate = new Date(date);
+    const today = new Date();
+
+    selectedDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate <= today) {
+      return res.status(400).json({
+        message: "Please choose a future working day",
+      });
+    }
+
+    const dayOfWeek = selectedDate.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      return res.status(400).json({
+        message: "Appointments are not available on weekends",
+      });
+    }
+
+    const appointment = await Appointment.findOne({ referenceId, phone });
 
     if (!appointment) {
       return res.status(404).json({
-        message: "Appointment not found"
+        message: "Appointment not found. Check reference ID and phone number.",
       });
     }
 
@@ -189,70 +222,55 @@ router.patch("/reschedule", async (req, res) => {
       date,
       time,
       department: appointment.department,
+      status: { $ne: "cancelled" },
       _id: { $ne: appointment._id },
-      status: { $ne: "cancelled" }
     });
 
     if (conflict) {
       return res.status(409).json({
-        message: "Time slot already booked"
+        message: "Time slot already booked for that date and time",
       });
     }
 
     appointment.date = date;
     appointment.time = time;
-    appointment.status = "scheduled";
-
     await appointment.save();
 
     res.json({
-      message: "Appointment rescheduled successfully"
+      success: true,
+      message: "Appointment rescheduled successfully",
+      referenceId: appointment.referenceId,
     });
-
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 
-
-// ===============================
-// STAFF / ADMIN ROUTES
-// ===============================
-
-// All appointments
-router.get("/", auth, role(["staff", "admin"]), async (req, res) => {
+// Track appointment
+router.post("/track", async (req, res) => {
   try {
-    const appointments = await Appointment.find().sort({ createdAt: -1 });
-    res.json(appointments);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
+    const { referenceId, phone } = req.body;
 
-// Update status
-router.patch("/:id/status", auth, role(["staff", "admin"]), async (req, res) => {
-  try {
-    const appointment = await Appointment.findById(req.params.id);
+    const appointment = await Appointment.findOne({ referenceId, phone });
 
     if (!appointment) {
       return res.status(404).json({
-        message: "Appointment not found"
+        message: "Appointment not found. Check reference ID and phone number.",
       });
     }
 
-    appointment.status = req.body.status;
-    appointment.updatedBy = req.user.id;
-    appointment.updatedRole = req.user.role;
-
-    await appointment.save();
-
     res.json({
-      message: "Appointment status updated",
-      appointment
+      success: true,
+      referenceId: appointment.referenceId,
+      patientName: appointment.patientName,
+      department: appointment.department,
+      doctor: appointment.doctor,
+      date: appointment.date,
+      time: appointment.time,
+      status: appointment.status,
     });
-
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 

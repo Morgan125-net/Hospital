@@ -22,5 +22,13 @@
     "username": "Morgan12",
     "password": "$2b$10$ZyCBc.grZgypplk87Wyrd.3d5SkRG/CxbVgqEAPz8t2kfjuGURGU2",
     "role": "staff"
+  },
+  {
+    "id": "fcb0b0e8-8c96-4861-87de-e127383ece31",
+    "name": "Justus maina",
+    "email": "mainajustus550@gmail.com",
+    "username": "justus12",
+    "password": "$2b$10$dkX6dFlNIasnv7syqHEZTeUayhtaQ0nxSd0QitqsfbZA9t3OOWuEy",
+    "role": "staff"
   }
 ]

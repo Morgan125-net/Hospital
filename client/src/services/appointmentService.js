@@ -1,4 +1,5 @@
-const API = `${import.meta.env.VITE_API_URL}/api/appointments`;
+const API_BASE = import.meta.env.VITE_API_URL || "";
+const API = `${API_BASE}/api/appointments`;
 
 const sendRequest = async (url, method, payload, errorMessage) => {
   const response = await fetch(url, {

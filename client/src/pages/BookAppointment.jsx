@@ -61,6 +61,15 @@ export default function BookAppointment() {
     ? departmentDoctors[formData.department]
     : [];
 
+  const getMinDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, "0");
+    const day = String(tomorrow.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -253,6 +262,7 @@ Status: ${data.status}`
               <input
                 type="date"
                 name="date"
+                min={getMinDate()}
                 value={formData.date}
                 onChange={handleChange}
                 required
