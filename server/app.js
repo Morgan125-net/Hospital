@@ -7,7 +7,23 @@ const doctorRoutes = require('./routes/doctor.routes');
 
 const app = express();
 
-app.use(cors());
+const allowedOrigins = [
+  process.env.CORS_ORIGIN,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://hospital-six-smoky.vercel.app'
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS policy: Origin not allowed'));
+    }
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 // routes
