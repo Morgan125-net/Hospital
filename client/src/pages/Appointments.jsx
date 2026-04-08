@@ -12,7 +12,9 @@ export default function Appointments() {
   const fetchAppointments = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:5000/api/appointments", {
+     const response = await fetch(
+  `${import.meta.env.VITE_API_URL}/api/appointments`,
+  {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -42,7 +44,7 @@ export default function Appointments() {
   const updateStatus = async (id, status) => {
     try {
       const token = localStorage.getItem("token");
-      await fetch(`http://localhost:5000/api/appointments/${id}/status`, {
+     await fetch(`${import.meta.env.VITE_API_URL}/api/appointments/${id}/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

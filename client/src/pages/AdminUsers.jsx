@@ -13,7 +13,9 @@ export default function AdminUsers() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/auth/users");
+      const response = await fetch(
+  `${import.meta.env.VITE_API_URL}/api/auth/users`
+);
       const data = await response.json();
       setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -37,7 +39,7 @@ export default function AdminUsers() {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/auth/register",
+        `${import.meta.env.VITE_API_URL}/api/auth/register`,
         {
           method: "POST",
           headers: {
