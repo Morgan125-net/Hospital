@@ -1,0 +1,145 @@
+* {
+  box-sizing: border-box;
+}
+
+.appointment-page {
+  width: 100%;
+  min-height: 100vh;
+  background: #f5f7fb;
+  font-family: Arial, sans-serif;
+}
+
+.hero {
+  width: 100%;
+  background: linear-gradient(135deg, #173f7a, #2458a6);
+  color: white;
+  padding: 60px 80px;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: 48px;
+  font-weight: bold;
+}
+
+.hero p {
+  margin-top: 15px;
+  font-size: 20px;
+  opacity: 0.95;
+}
+
+.appointment-container {
+  display: flex;
+  gap: 50px;
+  padding: 60px 80px;
+  align-items: flex-start;
+}
+
+.appointment-left {
+  width: 30%;
+}
+
+.appointment-left h3 {
+  color: #173f7a;
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.appointment-left p {
+  color: #444;
+  font-size: 18px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.appointment-left h2 {
+  color: #173f7a;
+  font-size: 36px;
+  line-height: 1.3;
+  margin-bottom: 25px;
+}
+
+.appointment-right {
+  width: 70%;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
+.action-buttons button {
+  padding: 14px 22px;
+  border: none;
+  border-radius: 8px;
+  background: #173f7a;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.action-buttons button:hover {
+  background: #0f2d58;
+}
+
+.appointment-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+}
+
+.appointment-form input,
+.appointment-form select,
+.appointment-form textarea {
+  width: 100%;
+  padding: 15px;
+  border: 1px solid #d5dbe3;
+  border-radius: 8px;
+  font-size: 16px;
+  background: #fff;
+  outline: none;
+}
+
+.appointment-form input:focus,
+.appointment-form select:focus,
+.appointment-form textarea:focus {
+  border-color: #173f7a;
+}
+
+.appointment-form textarea {
+  grid-column: span 2;
+  resize: none;
+  min-height: 140px;
+}
+
+.appointment-form button[type="submit"] {
+  grid-column: span 2;
+  padding: 16px;
+  border: none;
+  border-radius: 8px;
+  background: #173f7a;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.appointment-form button[type="submit"]:hover {
+  background: #0f2d58;
+}
+
+.footer {
+  text-align: center;
+  padding: 30px;
+  color: #555;
+  font-size: 25px;
+}

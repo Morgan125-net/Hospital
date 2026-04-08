@@ -1,0 +1,26 @@
+[
+  {
+    "id": "2c38c68d-b8e1-417b-848a-3f708b6fabbd",
+    "name": "Hospital Admin",
+    "email": "admin@hospital.com",
+    "username": "Admin",
+    "password": "$2b$10$Nak/okaR9e1J0BOnLFBLGOLr2MJdUswzdkD3lRv9piSvbs0oxEKQ.",
+    "role": "admin"
+  },
+  {
+    "id": "da099a08-b05f-4977-b98d-43a12f4dc23a",
+    "name": "kiddie",
+    "email": "kiddieepaa@gmail.com",
+    "username": "kiddie",
+    "password": "$2b$10$pOBzSH.PDXhNW.khR.Ib6uqYYebD0xjb4ZuyG.5NBa3XfSx5AuCdq",
+    "role": "staff"
+  },
+  {
+    "id": "9c87d16e-8080-4c5c-af16-cc3463bf9e03",
+    "name": "Morgan Muraya",
+    "email": "murmorgan125@gmail.com",
+    "username": "Morgan12",
+    "password": "$2b$10$ZyCBc.grZgypplk87Wyrd.3d5SkRG/CxbVgqEAPz8t2kfjuGURGU2",
+    "role": "staff"
+  }
+]
