@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 
 const auth = require("../middleware/auth.middleware");
 const { sendAppointmentSMS } = require("../services/sms.service");
@@ -31,7 +32,12 @@ const validateTime = (time) => {
 // ===============================
 router.post("/", async (req, res) => {
   try {
-    const { date, time, department, patientName, phone } = req.body;
+    const { date, time, department, patientName, phone, email, doctor, message } = req.body;
+
+    // Check if MongoDB is connected
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ message: "Database connection unavailable" });
+    }
 
     if (!departments[department]) {
       return res.status(400).json({ message: "Invalid department name" });
@@ -80,13 +86,13 @@ router.post("/", async (req, res) => {
       referenceId: `HSP-${Date.now()}`,
       patientId: `PAT-${Date.now()}`,
       patientName,
-      email: req.body.email,
-      doctor: req.body.doctor,
+      email,
+      doctor,
       phone,
       department,
       date,
       time,
-      message: req.body.message,
+      message,
       status: "scheduled",
     });
 
@@ -117,6 +123,10 @@ router.post("/", async (req, res) => {
 // ===============================
 router.get("/", auth, async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ message: "Database connection unavailable" });
+    }
+
     const appointments = await Appointment.find();
     res.json(appointments);
   } catch (error) {
@@ -127,6 +137,10 @@ router.get("/", auth, async (req, res) => {
 // update appointment status
 router.patch("/:id/status", auth, async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ message: "Database connection unavailable" });
+    }
+
     const { status } = req.body;
     const appointment = await Appointment.findByIdAndUpdate(
       req.params.id,
@@ -155,6 +169,10 @@ router.patch("/:id/status", auth, async (req, res) => {
 // Cancel appointment
 router.patch("/cancel", async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ message: "Database connection unavailable" });
+    }
+
     const { referenceId, phone } = req.body;
 
     const appointment = await Appointment.findOneAndUpdate(
@@ -182,6 +200,10 @@ router.patch("/cancel", async (req, res) => {
 // Reschedule appointment
 router.patch("/reschedule", async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ message: "Database connection unavailable" });
+    }
+
     const { referenceId, phone, date, time } = req.body;
 
     if (!validateTime(time)) {
@@ -249,6 +271,10 @@ router.patch("/reschedule", async (req, res) => {
 // Track appointment
 router.post("/track", async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ message: "Database connection unavailable" });
+    }
+
     const { referenceId, phone } = req.body;
 
     const appointment = await Appointment.findOne({ referenceId, phone });
