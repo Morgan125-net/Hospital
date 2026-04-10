@@ -2,18 +2,27 @@ const API_BASE = import.meta.env.VITE_API_URL || (window.location.hostname === '
 const API = API_BASE ? `${API_BASE}/api/appointments` : '/api/appointments';
 
 const sendRequest = async (url, method, payload, errorMessage) => {
-  const response = await fetch(url, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  let response;
 
-  const data = await response.json();
+  try {
+    response = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    throw new Error("Unable to reach the server. Check deployment, API URL, or CORS settings.");
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+  const data = contentType.includes("application/json")
+    ? await response.json()
+    : null;
 
   if (!response.ok) {
-    throw new Error(data.message || errorMessage);
+    throw new Error(data?.message || errorMessage);
   }
 
   return data;
