@@ -1,5 +1,9 @@
 require("dotenv").config();
-require("./jobs/reminder.job");
+
+const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+if (!isServerless) {
+  require("./jobs/reminder.job");
+}
 
 const app = require("./app");
 const connectDB = require("./config/db");

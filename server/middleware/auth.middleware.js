@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const auth = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
+    const secret = process.env.JWT_SECRET;
 
     if (!authHeader) {
       return res.status(401).json({
@@ -10,12 +11,15 @@ const auth = (req, res, next) => {
       });
     }
 
+    if (!secret) {
+      return res.status(500).json({
+        message: "Server misconfigured. JWT_SECRET is required.",
+      });
+    }
+
     const token = authHeader.split(" ")[1];
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET
-    );
+    const decoded = jwt.verify(token, secret);
 
     req.user = decoded;
     next();

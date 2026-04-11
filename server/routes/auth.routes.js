@@ -82,6 +82,10 @@ router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
 
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ message: 'JWT_SECRET is not configured' });
+    }
+
     const users = getUsers();
 
     const user = users.find(u => u.username === username);
@@ -95,26 +99,24 @@ router.post('/login', async (req, res) => {
     }
 
     const payload = {
-  id: user.id,
-  email: user.email,
-  role: String(user.role).toLowerCase().trim()
-};
+      id: user.id,
+      email: user.email,
+      role: String(user.role).toLowerCase().trim(),
+    };
 
-    const token = jwt.sign(
-      payload,
-      process.env.JWT_SECRET,
-      { expiresIn: '2h' }
-    );
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: '2h',
+    });
 
-   res.json({
-  token,
-  user: {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role
-  }
-});
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
 
   } catch (error) {
     res.status(500).json({ message: 'Server error during login' });
