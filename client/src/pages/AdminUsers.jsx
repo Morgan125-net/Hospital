@@ -1,31 +1,94 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+const departments = [
+  "Cardiologist",
+  "Dentist",
+  "Dermatologist",
+  "ENT Specialist",
+  "Eye Care",
+  "General Doctor",
+  "Gynecologist",
+  "Orthopedic",
+  "Pediatrician",
+  "Therapist",
+];
+
+const roles = [
+  { value: "admin", label: "Admin" },
+  { value: "doctor", label: "Doctor" },
+  { value: "staff", label: "Staff" },
+];
 
 export default function AdminUsers() {
+  const API_BASE =
+    import.meta.env.VITE_API_URL ||
+    (window.location.hostname === "localhost" ? "http://localhost:5000" : "");
+  const token = localStorage.getItem("token");
   const [form, setForm] = useState({
     name: "",
     email: "",
     username: "",
     password: "",
     role: "staff",
+    department: departments[0],
+    phone: "",
   });
 
-  const [users, setUsers] = useState([]);
+  const [accounts, setAccounts] = useState([]);
 
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch(
-  `${import.meta.env.VITE_API_URL || ""}/api/auth/users`
-);
-      const data = await response.json();
-      setUsers(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Failed to fetch users:", error);
-    }
+  const readJson = async (response) => {
+    const contentType = response.headers.get("content-type") || "";
+    return contentType.includes("application/json") ? response.json() : null;
   };
 
+  const fetchAccounts = useCallback(async () => {
+    try {
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
+
+      const [usersResponse, doctorsResponse] = await Promise.all([
+        fetch(`${API_BASE}/api/auth/users`, { headers }),
+        fetch(`${API_BASE}/api/doctors`, { headers }),
+      ]);
+
+      const usersData = await readJson(usersResponse);
+      const doctorsData = await readJson(doctorsResponse);
+
+      if (!usersResponse.ok || !doctorsResponse.ok) {
+        throw new Error("Failed to fetch system accounts");
+      }
+
+      const users = Array.isArray(usersData)
+        ? usersData.map((user) => ({
+            id: user.id,
+            name: user.name,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            accountType: "user",
+          }))
+        : [];
+
+      const doctors = Array.isArray(doctorsData)
+        ? doctorsData.map((doctor) => ({
+            id: doctor._id,
+            name: doctor.fullName || doctor.username || "-",
+            role: "doctor",
+            department: doctor.department,
+            accountType: "doctor",
+          }))
+        : [];
+
+      setAccounts([...users, ...doctors]);
+    } catch (error) {
+      console.error("Failed to fetch accounts:", error);
+    }
+  }, [API_BASE, token]);
+
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    fetchAccounts();
+  }, [fetchAccounts]);
 
   const handleChange = (e) => {
     setForm({
@@ -34,37 +97,68 @@ export default function AdminUsers() {
     });
   };
 
+  const resetForm = () => {
+    setForm({
+      name: "",
+      email: "",
+      username: "",
+      password: "",
+      role: "staff",
+      department: departments[0],
+      phone: "",
+    });
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
 
     try {
+      const isDoctor = form.role === "doctor";
+      const url = isDoctor
+        ? `${API_BASE}/api/doctors`
+        : `${API_BASE}/api/auth/register`;
+      const payload = isDoctor
+        ? {
+            fullName: form.name,
+            username: form.username,
+            password: form.password,
+            email: form.email,
+            phone: form.phone,
+            department: form.department,
+          }
+        : {
+            name: form.name,
+            email: form.email,
+            username: form.username,
+            password: form.password,
+            role: form.role,
+          };
+
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || ""}/api/auth/register`,
+        url,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         }
       );
 
-      const data = await response.json();
+      const data = await readJson(response);
 
       if (response.ok) {
-        alert("User created successfully");
+        alert(
+          isDoctor
+            ? "Doctor account created successfully"
+            : "User created successfully"
+        );
 
-        setForm({
-          name: "",
-          email: "",
-          username: "",
-          password: "",
-          role: "staff",
-        });
-
-        fetchUsers();
+        resetForm();
+        fetchAccounts();
       } else {
-        alert(data.message || "Failed to create user");
+        alert(data?.message || "Failed to create account");
       }
     } catch (error) {
       console.error(error);
@@ -72,25 +166,61 @@ export default function AdminUsers() {
     }
   };
 
+  const handleDeleteAccount = async (account) => {
+    const confirmed = window.confirm(
+      `Delete ${account.name} from the system?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const endpoint =
+        account.accountType === "doctor"
+          ? `${API_BASE}/api/doctors/${account.id}`
+          : `${API_BASE}/api/auth/users/${account.id}`;
+
+      const response = await fetch(endpoint, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to delete account");
+      }
+
+      alert(data?.message || "Account deleted successfully");
+      fetchAccounts();
+    } catch (error) {
+      alert(error.message || "Server error");
+    }
+  };
+
   return (
     <div className="grid lg:grid-cols-2 gap-6">
       {/* Create user card */}
-      <div className="bg-white rounded-3xl shadow-xl p-8">
-        <h1 className="text-4xl font-bold text-slate-900 mb-2">
-          Create Staff Account
-        </h1>
-        <p className="text-slate-500 mb-8">
-          Admin can create receptionist and hospital staff accounts.
-        </p>
+      <div className="overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-indigo-100">
+        <div className="bg-gradient-to-br from-indigo-950 via-blue-900 to-emerald-800 p-8 text-white">
+          <p className="text-sm font-semibold uppercase tracking-widest text-emerald-200">
+            Account Studio
+          </p>
+          <h1 className="mt-3 text-4xl font-bold">Create Account</h1>
+          <p className="mt-3 text-slate-200">
+            Admin can create staff, admin, and doctor portal accounts.
+          </p>
+        </div>
 
-        <form onSubmit={handleCreateUser} className="space-y-4">
+        <form onSubmit={handleCreateUser} className="space-y-4 p-8">
           <input
             type="text"
             name="name"
             placeholder="Full name"
             value={form.name}
             onChange={handleChange}
-            className="w-full border border-slate-300 rounded-xl px-4 py-3"
+            className="w-full rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 outline-none focus:border-indigo-500 focus:bg-white"
             required
           />
 
@@ -100,7 +230,7 @@ export default function AdminUsers() {
             placeholder="Email"
             value={form.email}
             onChange={handleChange}
-            className="w-full border border-slate-300 rounded-xl px-4 py-3"
+            className="w-full rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 outline-none focus:border-indigo-500 focus:bg-white"
             required
           />
 
@@ -110,7 +240,7 @@ export default function AdminUsers() {
             placeholder="Username"
             value={form.username}
             onChange={handleChange}
-            className="w-full border border-slate-300 rounded-xl px-4 py-3"
+            className="w-full rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 outline-none focus:border-indigo-500 focus:bg-white"
             required
           />
 
@@ -120,7 +250,7 @@ export default function AdminUsers() {
             placeholder="Password"
             value={form.password}
             onChange={handleChange}
-            className="w-full border border-slate-300 rounded-xl px-4 py-3"
+            className="w-full rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 outline-none focus:border-indigo-500 focus:bg-white"
             required
           />
 
@@ -128,51 +258,99 @@ export default function AdminUsers() {
             name="role"
             value={form.role}
             onChange={handleChange}
-            className="w-full border border-slate-300 rounded-xl px-4 py-3"
+            className="w-full rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 font-semibold outline-none focus:border-emerald-500 focus:bg-white"
           >
-            <option value="staff">Staff</option>
-            <option value="admin">Admin</option>
+            {roles.map((role) => (
+              <option key={role.value} value={role.value}>
+                {role.label}
+              </option>
+            ))}
           </select>
+
+          {form.role === "doctor" && (
+            <>
+              <input
+                type="text"
+                name="phone"
+                placeholder="Phone"
+                value={form.phone}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 outline-none focus:border-blue-500 focus:bg-white"
+              />
+
+              <select
+                name="department"
+                value={form.department}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 font-semibold outline-none focus:border-blue-500 focus:bg-white"
+              >
+                {departments.map((department) => (
+                  <option key={department} value={department}>
+                    {department}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
 
           <button
             type="submit"
-            className="w-full bg-slate-900 text-white rounded-xl py-3 font-semibold hover:bg-slate-800"
+            className="w-full rounded-xl bg-gradient-to-r from-indigo-700 to-emerald-600 py-3 font-semibold text-white shadow-lg hover:from-indigo-800 hover:to-emerald-700"
           >
-            Create User
+            {form.role === "doctor" ? "Create Doctor" : "Create User"}
           </button>
         </form>
       </div>
 
       {/* Users table */}
-      <div className="bg-white rounded-3xl shadow-xl p-8 overflow-auto">
-        <h1 className="text-4xl font-bold text-slate-900 mb-8">
-          System Users
-        </h1>
+      <div className="overflow-auto rounded-2xl bg-white shadow-xl ring-1 ring-emerald-100">
+        <div className="bg-gradient-to-r from-emerald-700 to-cyan-700 p-8 text-white">
+          <p className="text-sm font-semibold uppercase tracking-widest text-emerald-100">
+            Directory
+          </p>
+          <h1 className="mt-3 text-4xl font-bold">System Accounts</h1>
+        </div>
 
-        <table className="w-full">
-          <thead>
-            <tr className="border-b text-left text-slate-700">
-              <th className="pb-4">Name</th>
-              <th className="pb-4">Username</th>
-              <th className="pb-4">Email</th>
-              <th className="pb-4">Role</th>
+        <table className="w-full min-w-[560px]">
+          <thead className="bg-emerald-50">
+            <tr className="text-left text-emerald-900">
+              <th className="px-6 py-4">Name</th>
+              <th className="px-6 py-4">Role</th>
+              <th className="px-6 py-4">Department</th>
+              <th className="px-6 py-4 text-right">Action</th>
             </tr>
           </thead>
 
           <tbody>
-            {users.length > 0 ? (
-              users.map((user) => (
-                <tr key={user.id} className="border-b">
-                  <td className="py-4">{user.name}</td>
-                  <td className="py-4">{user.username}</td>
-                  <td className="py-4">{user.email}</td>
-                  <td className="py-4 capitalize">{user.role}</td>
+            {accounts.length > 0 ? (
+              accounts.map((account) => (
+                <tr key={account.id} className="border-b border-slate-100 hover:bg-cyan-50">
+                  <td className="px-6 py-4 font-semibold text-slate-900">
+                    {account.name}
+                  </td>
+                  <td className="px-6 py-4 capitalize">
+                    <span className="rounded-full bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-700">
+                      {account.role}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-slate-600">
+                    {account.department || "-"}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteAccount(account)}
+                      className="rounded-lg bg-gradient-to-r from-red-600 to-rose-600 px-3 py-2 text-sm font-semibold text-white shadow hover:from-red-700 hover:to-rose-700"
+                    >
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="4" className="py-8 text-center text-slate-400">
-                  No users found
+                <td colSpan="4" className="px-6 py-10 text-center text-slate-400">
+                  No accounts found
                 </td>
               </tr>
             )}

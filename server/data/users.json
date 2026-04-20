@@ -1,34 +1,26 @@
 [
   {
-    "id": "2c38c68d-b8e1-417b-848a-3f708b6fabbd",
-    "name": "Hospital Admin",
-    "email": "admin@hospital.com",
-    "username": "Admin",
-    "password": "$2b$10$Nak/okaR9e1J0BOnLFBLGOLr2MJdUswzdkD3lRv9piSvbs0oxEKQ.",
-    "role": "admin"
-  },
-  {
     "id": "da099a08-b05f-4977-b98d-43a12f4dc23a",
     "name": "kiddie",
     "email": "kiddieepaa@gmail.com",
     "username": "kiddie",
     "password": "$2b$10$pOBzSH.PDXhNW.khR.Ib6uqYYebD0xjb4ZuyG.5NBa3XfSx5AuCdq",
-    "role": "staff"
+    "role": "admin"
   },
   {
-    "id": "9c87d16e-8080-4c5c-af16-cc3463bf9e03",
-    "name": "Morgan Muraya",
-    "email": "murmorgan125@gmail.com",
-    "username": "Morgan12",
-    "password": "$2b$10$ZyCBc.grZgypplk87Wyrd.3d5SkRG/CxbVgqEAPz8t2kfjuGURGU2",
-    "role": "staff"
+    "fullName": "Dr. Mercy",
+    "username": "doc mercy",
+    "password": "$2b$10$Nak/okaR9e1J0BOnLFBLGOLr2MJdUswzdkD3lRv9piSvbs0oxEKQ.",
+    "email": "doc@test.com",
+    "phone": "0712345678",
+    "department": "Eye Care"
   },
   {
-    "id": "fcb0b0e8-8c96-4861-87de-e127383ece31",
-    "name": "Justus maina",
-    "email": "mainajustus550@gmail.com",
-    "username": "justus12",
-    "password": "$2b$10$dkX6dFlNIasnv7syqHEZTeUayhtaQ0nxSd0QitqsfbZA9t3OOWuEy",
+    "id": "8f76b11f-27d3-44d6-91bb-15d6b7b6681f",
+    "name": "Wilson Gikuma ",
+    "email": "shift@gmail.com",
+    "username": "Willy",
+    "password": "$2b$10$pmNCJWoluE.F86fCfH2ICe4DC/KUH0vnu1PBKwZhXbW4ahxEVow4S",
     "role": "staff"
   }
 ]

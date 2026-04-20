@@ -1,26 +1,74 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const doctorSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true
+const doctorSchema = new mongoose.Schema(
+  {
+    fullName: {
+      type: String,
+      required: true,
+    },
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    email: {
+      type: String,
+      default: "",
+    },
+    phone: {
+      type: String,
+      default: "",
+    },
+    department: {
+      type: String,
+      required: true,
+    },
+    role: {
+      type: String,
+      default: "doctor",
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    availability: [
+      {
+        day: {
+          type: String,
+          required: true,
+        },
+        startTime: {
+          type: String,
+          required: true,
+        },
+        endTime: {
+          type: String,
+          required: true,
+        },
+        isAvailable: {
+          type: Boolean,
+          default: true,
+        },
+      },
+    ],
+    unavailableDates: [
+      {
+        date: {
+          type: String,
+          required: true,
+        },
+        reason: {
+          type: String,
+          default: "",
+        },
+      },
+    ],
   },
-  department: {
-    type: String,
-    required: true
-  },
-  availableDays: {
-    type: [String], // e.g. ["Monday", "Tuesday"]
-    required: true
-  },
-  startTime: {
-    type: String, // "08:00"
-    required: true
-  },
-  endTime: {
-    type: String, // "17:00"
-    required: true
-  }
-}, { timestamps: true });
+  { timestamps: true }
+);
 
-module.exports = mongoose.model('Doctor', doctorSchema);
+module.exports = mongoose.model("Doctor", doctorSchema);

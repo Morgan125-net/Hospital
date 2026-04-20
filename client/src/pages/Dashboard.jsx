@@ -1,31 +1,36 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export default function Dashboard() {
+  const API_BASE =
+    import.meta.env.VITE_API_URL ||
+    (window.location.hostname === "localhost" ? "http://localhost:5000" : "");
   const [appointments, setAppointments] = useState([]);
   const [department, setDepartment] = useState("All");
 
-useEffect(() => {
-  fetchAppointments();
-}, []);
-
-const fetchAppointments = async () => {
+const fetchAppointments = useCallback(async () => {
   try {
     const token = localStorage.getItem("token");
 
-    const response = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/appointments`, {
+    const response = await fetch(`${API_BASE}/api/appointments`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
 
-    const data = await response.json();
-    console.log("DASHBOARD DATA:", data);
+    const contentType = response.headers.get("content-type") || "";
+    const data = contentType.includes("application/json")
+      ? await response.json()
+      : [];
 
     setAppointments(Array.isArray(data) ? data : []);
   } catch (error) {
     console.error("Dashboard fetch error:", error);
   }
-};
+}, [API_BASE]);
+
+useEffect(() => {
+  fetchAppointments();
+}, [fetchAppointments]);
 
   const departments = useMemo(() => {
     const unique = [...new Set(appointments.map((a) => a.department).filter(Boolean))];
@@ -52,22 +57,26 @@ const fetchAppointments = async () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-3xl shadow-lg p-6 border border-slate-200">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-950 via-blue-900 to-emerald-800 text-white shadow-xl">
+        <div className="flex flex-col gap-5 p-7 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-slate-900">Dashboard Overview</h1>
-            <p className="text-slate-500 mt-2">
-              Summary, stats, filters and recent hospital bookings
+            <p className="text-sm font-semibold uppercase tracking-widest text-emerald-200">
+              Admin Overview
+            </p>
+            <h1 className="mt-3 text-4xl font-bold">Dashboard Overview</h1>
+            <p className="mt-3 max-w-2xl text-slate-200">
+              Summary, stats, filters and recent hospital bookings with a quick
+              read on today&apos;s activity.
             </p>
           </div>
 
           <select
             value={department}
             onChange={(e) => setDepartment(e.target.value)}
-            className="border rounded-xl px-4 py-3 bg-white"
+            className="rounded-xl border border-white/20 bg-white/15 px-4 py-3 font-semibold text-white backdrop-blur"
           >
             {departments.map((dept) => (
-              <option key={dept} value={dept}>
+              <option key={dept} value={dept} className="text-slate-900">
                 {dept}
               </option>
             ))}
@@ -76,20 +85,20 @@ const fetchAppointments = async () => {
       </div>
 
       <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard title="Total Bookings" value={stats.total} />
+        <StatCard title="Total Bookings" value={stats.total} accent="indigo" />
         <StatCard title="Scheduled" value={stats.scheduled} accent="green" />
         <StatCard title="Cancelled" value={stats.cancelled} accent="red" />
         <StatCard title="Today" value={stats.today} accent="blue" />
       </div>
 
-      <div className="bg-white rounded-3xl shadow-lg border border-slate-200 overflow-hidden">
-        <div className="p-6 border-b border-slate-200">
-          <h2 className="text-2xl font-bold">Recent Bookings</h2>
+      <div className="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-xl">
+        <div className="border-b border-blue-100 bg-gradient-to-r from-white to-blue-50 p-6">
+          <h2 className="text-2xl font-bold text-slate-950">Recent Bookings</h2>
           <p className="text-slate-500">Latest 5 bookings from the selected filter</p>
         </div>
 
-        <table className="w-full">
-          <thead className="bg-slate-900 text-white">
+        <table className="w-full min-w-[720px]">
+          <thead className="bg-indigo-950 text-white">
             <tr>
               <th className="p-4 text-left">Patient</th>
               <th className="p-4 text-left">Department</th>
@@ -100,7 +109,7 @@ const fetchAppointments = async () => {
           </thead>
           <tbody>
             {recentAppointments.map((appt, index) => (
-              <tr key={index} className="border-b hover:bg-slate-50">
+              <tr key={index} className="border-b border-slate-100 hover:bg-blue-50">
                 <td className="p-4">{appt.patientName || "—"}</td>
                 <td className="p-4">{appt.department}</td>
                 <td className="p-4">{appt.date}</td>
@@ -125,19 +134,19 @@ const fetchAppointments = async () => {
   );
 }
 
+/* eslint-disable react/prop-types */
 function StatCard({ title, value, accent = "slate" }) {
   const accentMap = {
-    slate: "text-slate-900",
-    green: "text-green-600",
-    red: "text-red-600",
-    blue: "text-blue-600",
+    indigo: "from-indigo-600 to-blue-600 text-white",
+    green: "from-emerald-500 to-teal-500 text-white",
+    red: "from-red-500 to-rose-500 text-white",
+    blue: "from-sky-500 to-cyan-500 text-white",
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-lg border border-slate-200 p-6">
-      <p className="text-slate-500 text-sm">{title}</p>
-      <h3 className={`text-4xl font-bold mt-2 ${accentMap[accent]}`}>{value}</h3>
+    <div className={`rounded-2xl bg-gradient-to-br ${accentMap[accent]} p-6 shadow-xl`}>
+      <p className="text-sm font-semibold text-white/80">{title}</p>
+      <h3 className="mt-3 text-4xl font-bold">{value}</h3>
     </div>
   );
 }
-

@@ -4,6 +4,9 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
+const Doctor = require('../models/doctor.model');
+const auth = require('../middleware/auth.middleware');
+const role = require('../middleware/role.middleware');
 
 const router = express.Router();
 
@@ -30,7 +33,7 @@ const saveUsers = (users) => {
 // ========================
 // REGISTER
 // ========================
-router.post('/register', async (req, res) => {
+router.post('/register', auth, role(['admin']), async (req, res) => {
   try {
     const { name, email, username, password, role } = req.body;
 
@@ -123,21 +126,85 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.get("/users", (req, res) => {
+//
+router.post('/doctor-login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Username and password are required' });
+    }
+
+    const doctor = await Doctor.findOne({ username });
+
+    if (!doctor) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const isMatch = await bcrypt.compare(password, doctor.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      {
+        id: doctor._id,
+        username: doctor.username,
+        role: doctor.role,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    return res.json({
+      message: "Login successful",
+      token,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error during doctor login' });
+  }
+});
+
+//
+router.get("/users", auth, role(['admin']), (req, res) => {
   try {
     const users = getUsers();
 
-    const safeUsers = users.map((u) => ({
-      id: u.id,
-      name: u.name,
-      username: u.username,
-      email: u.email,
-      role: u.role,
-    }));
+    const safeUsers = users
+      .filter((u) => u.role)
+      .map((u) => ({
+        id: u.id,
+        name: u.name,
+        username: u.username,
+        email: u.email,
+        role: u.role,
+      }));
 
     res.json(safeUsers);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch users" });
+  }
+});
+
+router.delete("/users/:id", auth, role(['admin']), (req, res) => {
+  try {
+    const users = getUsers();
+    const userToDelete = users.find((u) => u.id === req.params.id);
+
+    if (!userToDelete) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (userToDelete.id === req.user.id) {
+      return res.status(400).json({ message: "You cannot delete your own account" });
+    }
+
+    const remainingUsers = users.filter((u) => u.id !== req.params.id);
+    saveUsers(remainingUsers);
+
+    res.json({ message: "User deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete user" });
   }
 });
 

@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 
+/* eslint-disable react/prop-types */
 export default function ProtectedRoute({ children, allowedRoles = [] }) {
   const token = localStorage.getItem("token");
 
@@ -9,14 +10,14 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
 
   try {
     const payload = JSON.parse(atob(token.split(".")[1]));
-    const role = String(payload.role || "").toLowerCase().trim();
+    const userRole = String(payload.role).toLowerCase().trim();
 
-    if (!allowedRoles.map((r) => r.toLowerCase()).includes(role)) {
+    if (!allowedRoles.includes(userRole)) {
       return <Navigate to="/login" replace />;
     }
 
     return children;
-  } catch (error) {
+  } catch {
     localStorage.removeItem("token");
     return <Navigate to="/login" replace />;
   }

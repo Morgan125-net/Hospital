@@ -9,6 +9,8 @@ import SidebarLayout from "./components/SidebarLayout";
 import StaffLayout from "./components/StaffLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Reports from "./pages/Reports";
+import DoctorDashboard from "./pages/DoctorDashboard";
+import DoctorAvailability from "./pages/DoctorAvailability";
 
 export default function App() {
   return (
@@ -42,6 +44,25 @@ export default function App() {
           <Route path="/staff/dashboard" element={<StaffDashboard />} />
           <Route path="/staff/appointments" element={<Appointments />} />
         </Route>
+
+        {/* Doctor routes */}
+        <Route
+          path="/doctor/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["doctor"]}>
+              <DoctorDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/doctor/availability"
+          element={
+            <ProtectedRoute allowedRoles={["doctor"]}>
+              <DoctorAvailability />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </Router>
   );

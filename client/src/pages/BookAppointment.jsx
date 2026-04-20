@@ -4,30 +4,33 @@ import {
   bookAppointment,
   cancelAppointment,
   rescheduleAppointment,
-  trackAppointment
+  trackAppointment,
 } from "../services/appointmentService";
 
-export default function BookAppointment() {
-  const [mode, setMode] = useState("book");
+const departments = [
+  "General Doctor",
+  "Eye Care",
+  "Dentist",
+  "Therapist",
+  "ENT Specialist",
+  "Pediatrician",
+  "Gynecologist",
+  "Cardiologist",
+  "Dermatologist",
+  "Orthopedic",
+];
 
-  const departmentDoctors = {
-    "General Doctor": ["Dr. Mercy", "Dr. Brian"],
-    "Eye Care": ["Dr. Alex", "Dr. Susan"],
-    Dentist: ["Dr. Smith", "Dr. Jane"],
-    Therapist: ["Dr. Kelvin", "Dr. Mary"],
-    "ENT Specialist": ["Dr. James", "Dr. Anita"],
-    Pediatrician: ["Dr. Kevin", "Dr. Grace"],
-    Gynecologist: ["Dr. Lucy", "Dr. Faith"],
-    Cardiologist: ["Dr. Paul", "Dr. Esther"],
-    Dermatologist: ["Dr. Ivy", "Dr. George"],
-    Orthopedic: ["Dr. John", "Dr. Collins"],
-  };
+export default function BookAppointment() {
+  const API_BASE = import.meta.env.VITE_API_URL || "";
+  const [mode, setMode] = useState("book");
+  const [availableDoctors, setAvailableDoctors] = useState([]);
+  const [loadingDoctors, setLoadingDoctors] = useState(false);
 
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
     department: "",
-    doctor: "",
+    doctorId: "",
     date: "",
     time: "",
     phone: "",
@@ -57,10 +60,6 @@ export default function BookAppointment() {
     "04:30 PM",
   ];
 
-  const doctors = formData.department
-    ? departmentDoctors[formData.department]
-    : [];
-
   const getMinDate = () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -70,130 +69,176 @@ export default function BookAppointment() {
     return `${year}-${month}-${day}`;
   };
 
+  const convertTo24Hour = (time12h) => {
+    if (!time12h) return "";
+
+    const [time, modifier] = time12h.split(" ");
+    let [hours, minutes] = time.split(":").map(Number);
+
+    if (modifier === "PM" && hours !== 12) {
+      hours += 12;
+    }
+
+    if (modifier === "AM" && hours === 12) {
+      hours = 0;
+    }
+
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  };
+
+  const fetchAvailableDoctors = async (department, date, time) => {
+    if (!department || !date || !time) {
+      setAvailableDoctors([]);
+      return;
+    }
+
+    try {
+      setLoadingDoctors(true);
+
+      const time24 = convertTo24Hour(time);
+
+      const response = await fetch(
+        `${API_BASE}/api/doctors/available?department=${encodeURIComponent(
+          department
+        )}&date=${encodeURIComponent(date)}&time=${encodeURIComponent(time24)}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to load available doctors");
+      }
+
+      setAvailableDoctors(data);
+    } catch (error) {
+      console.error(error);
+      setAvailableDoctors([]);
+    } finally {
+      setLoadingDoctors(false);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-      ...(name === "department" ? { doctor: "" } : {}),
-    }));
+    setFormData((prev) => {
+      const updated = {
+        ...prev,
+        [name]: value,
+      };
+
+      if (name === "department" || name === "date" || name === "time") {
+        updated.doctorId = "";
+
+        const nextDepartment = name === "department" ? value : updated.department;
+        const nextDate = name === "date" ? value : updated.date;
+        const nextTime = name === "time" ? value : updated.time;
+
+        fetchAvailableDoctors(nextDepartment, nextDate, nextTime);
+      }
+
+      return updated;
+    });
   };
 
-  const convertTo24Hour = (time12h) => {
-  if (!time12h) return "";
+  const handleBook = async (e) => {
+    e.preventDefault();
 
-  const [time, modifier] = time12h.split(" ");
-  let [hours, minutes] = time.split(":").map(Number);
+    try {
+      const response = await bookAppointment({
+        patientName: formData.fullName,
+        email: formData.email,
+        department: formData.department,
+        doctorId: formData.doctorId,
+        date: formData.date,
+        time: convertTo24Hour(formData.time),
+        phone: formData.phone,
+        message: formData.message,
+      });
 
-  if (modifier === "PM" && hours !== 12) {
-    hours += 12;
-  }
+      alert(
+        `Appointment booked successfully ✅\nReference: ${response.referenceId}`
+      );
 
-  if (modifier === "AM" && hours === 12) {
-    hours = 0;
-  }
+      setAvailableDoctors([]);
+      setFormData((prev) => ({
+        ...prev,
+        fullName: "",
+        email: "",
+        department: "",
+        doctorId: "",
+        date: "",
+        time: "",
+        phone: "",
+        message: "",
+      }));
+    } catch (error) {
+      alert(error.message);
+    }
+  };
 
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
-};
+  const handleCancel = async (e) => {
+    e.preventDefault();
 
-const handleBook = async (e) => {
-  e.preventDefault();
+    try {
+      const data = await cancelAppointment({
+        referenceId: formData.referenceId,
+        phone: formData.phone,
+      });
 
-  try {
-    const response = await bookAppointment({
-      patientName: formData.fullName,
-      email: formData.email,
-      department: formData.department,
-      doctor: formData.doctor,
-      date: formData.date,
-      time: convertTo24Hour(formData.time),
-      phone: formData.phone,
-      message: formData.message,
-    });
+      alert(data.message);
+    } catch (error) {
+      alert(error.message);
+    }
+  };
 
-    alert(
-      `Appointment booked successfully ✅\nReference: ${response.referenceId}`
-    );
+  const handleReschedule = async (e) => {
+    e.preventDefault();
 
-    // optional reset after booking
-    setFormData((prev) => ({
-      ...prev,
-      fullName: "",
-      email: "",
-      department: "",
-      doctor: "",
-      date: "",
-      time: "",
-      phone: "",
-      message: "",
-    }));
-  } catch (error) {
-    alert(error.message);
-  }
-};
+    try {
+      const data = await rescheduleAppointment({
+        referenceId: formData.referenceId,
+        phone: formData.phone,
+        date: formData.newDate,
+        time: convertTo24Hour(formData.newTime),
+      });
 
-const handleCancel = async (e) => {
-  e.preventDefault();
+      alert(data.message);
+    } catch (error) {
+      alert(error.message);
+    }
+  };
 
-  try {
-    const data = await cancelAppointment({
-      referenceId: formData.referenceId,
-      phone: formData.phone,
-    });
+  const handleTrack = async (e) => {
+    e.preventDefault();
 
-    alert(data.message);
-  } catch (error) {
-    alert(error.message);
-  }
-};
+    try {
+      const data = await trackAppointment({
+        referenceId: formData.referenceId,
+        phone: formData.phone,
+      });
 
-const handleReschedule = async (e) => {
-  e.preventDefault();
-
-  try {
-    const data = await rescheduleAppointment({
-      referenceId: formData.referenceId,
-      phone: formData.phone,
-      date: formData.newDate,
-      time: convertTo24Hour(formData.newTime),
-    });
-
-    alert(data.message);
-  } catch (error) {
-    alert(error.message);
-  }
-};
-
-const handleTrack = async (e) => {
-  e.preventDefault();
-
-  try {
-    const data = await trackAppointment({
-      referenceId: formData.referenceId,
-      phone: formData.phone,
-    });
-
-    alert(
-      `Appointment Found ✅
+      alert(
+        `Appointment Found ✅
 Reference: ${data.referenceId}
 Patient: ${data.patientName}
 Department: ${data.department}
+Doctor: ${data.doctorName || "Not assigned"}
 Date: ${data.date}
 Time: ${data.time}
 Status: ${data.status}`
-    );
-  } catch (error) {
-    alert(error.message);
-  }
-};
+      );
+    } catch (error) {
+      alert(error.message);
+    }
+  };
 
   return (
     <div className="appointment-page">
       <section className="hero">
         <h1>BOOK AN APPOINTMENT</h1>
         <p>
-          Schedule your visit with our specialists today. Pick your department, 
+          Schedule your visit with our specialists today. Pick your department,
           choose a suitable time, and confirm your appointment in seconds.
         </p>
       </section>
@@ -209,10 +254,18 @@ Status: ${data.status}`
 
         <div className="appointment-right">
           <div className="action-buttons">
-            <button type="button" onClick={() => setMode("book")}>Book</button>
-            <button type="button" onClick={() => setMode("cancel")}>Cancel</button>
-            <button type="button" onClick={() => setMode("reschedule")}>Reschedule</button>
-            <button onClick={() => setMode("track")}>My Booking</button>
+            <button type="button" onClick={() => setMode("book")}>
+              Book
+            </button>
+            <button type="button" onClick={() => setMode("cancel")}>
+              Cancel
+            </button>
+            <button type="button" onClick={() => setMode("reschedule")}>
+              Reschedule
+            </button>
+            <button type="button" onClick={() => setMode("track")}>
+              My Booking
+            </button>
           </div>
 
           {mode === "book" && (
@@ -232,7 +285,6 @@ Status: ${data.status}`
                 placeholder="Enter email address"
                 value={formData.email}
                 onChange={handleChange}
-                required
               />
 
               <select
@@ -242,20 +294,10 @@ Status: ${data.status}`
                 required
               >
                 <option value="">Select department</option>
-                {Object.keys(departmentDoctors).map((dept) => (
-                  <option key={dept}>{dept}</option>
-                ))}
-              </select>
-
-              <select
-                name="doctor"
-                value={formData.doctor}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Select doctor</option>
-                {doctors.map((doc) => (
-                  <option key={doc}>{doc}</option>
+                {departments.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
                 ))}
               </select>
 
@@ -276,7 +318,37 @@ Status: ${data.status}`
               >
                 <option value="">Select preferred time</option>
                 {times.map((time) => (
-                  <option key={time}>{time}</option>
+                  <option key={time} value={time}>
+                    {time}
+                  </option>
+                ))}
+              </select>
+
+              {loadingDoctors && (
+                <p className="info-text">Loading available doctors...</p>
+              )}
+
+              {!loadingDoctors &&
+                formData.department &&
+                formData.date &&
+                formData.time &&
+                availableDoctors.length === 0 && (
+                  <p className="error-text">
+                    No doctors available for that department, date, and time.
+                  </p>
+                )}
+
+              <select
+                name="doctorId"
+                value={formData.doctorId}
+                onChange={handleChange}
+                required
+              >
+                <option value="">Select doctor</option>
+                {availableDoctors.map((doc) => (
+                  <option key={doc._id} value={doc._id}>
+                    {doc.fullName}
+                  </option>
                 ))}
               </select>
 
@@ -295,7 +367,6 @@ Status: ${data.status}`
                 placeholder="Describe symptoms or additional notes"
                 value={formData.message}
                 onChange={handleChange}
-                required
               />
 
               <button type="submit">BOOK APPOINTMENT</button>
@@ -349,6 +420,7 @@ Status: ${data.status}`
               <input
                 type="date"
                 name="newDate"
+                min={getMinDate()}
                 value={formData.newDate}
                 onChange={handleChange}
                 required
@@ -362,7 +434,9 @@ Status: ${data.status}`
               >
                 <option value="">Select new time</option>
                 {times.map((time) => (
-                  <option key={time}>{time}</option>
+                  <option key={time} value={time}>
+                    {time}
+                  </option>
                 ))}
               </select>
 
@@ -370,31 +444,31 @@ Status: ${data.status}`
             </form>
           )}
 
-{mode === "track" && (
-  <form className="appointment-form" onSubmit={handleTrack}>
-    <div className="form-row">
-      <input
-        type="text"
-        name="referenceId"
-        placeholder="Enter booking reference ID"
-        value={formData.referenceId}
-        onChange={handleChange}
-        required
-      />
+          {mode === "track" && (
+            <form className="appointment-form" onSubmit={handleTrack}>
+              <div className="form-row">
+                <input
+                  type="text"
+                  name="referenceId"
+                  placeholder="Enter booking reference ID"
+                  value={formData.referenceId}
+                  onChange={handleChange}
+                  required
+                />
 
-      <input
-        type="text"
-        name="phone"
-        placeholder="Enter phone number"
-        value={formData.phone}
-        onChange={handleChange}
-        required
-      />
-    </div>
+                <input
+                  type="text"
+                  name="phone"
+                  placeholder="Enter phone number"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
 
-    <button type="submit">CHECK MY APPOINTMENT</button>
-  </form>
-)}
+              <button type="submit">CHECK MY APPOINTMENT</button>
+            </form>
+          )}
         </div>
       </div>
 

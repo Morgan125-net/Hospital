@@ -12,7 +12,7 @@ const sendRequest = async (url, method, payload, errorMessage) => {
       },
       body: JSON.stringify(payload),
     });
-  } catch (error) {
+  } catch {
     throw new Error("Unable to reach the server. Check deployment, API URL, or CORS settings.");
   }
 

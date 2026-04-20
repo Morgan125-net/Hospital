@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const auth = require("../middleware/auth.middleware");
 const { sendAppointmentSMS } = require("../services/sms.service");
 const Appointment = require("../models/appointment.model");
+const Doctor = require("../models/doctor.model");
 
 const departments = {
   "General Doctor": true,
@@ -32,11 +33,25 @@ const validateTime = (time) => {
 // ===============================
 router.post("/", async (req, res) => {
   try {
-    const { date, time, department, patientName, phone, email, doctor, message } = req.body;
+    const {
+      date,
+      time,
+      department,
+      patientName,
+      phone,
+      email,
+      doctorId,
+      message,
+    } = req.body;
 
-    // Check if MongoDB is connected
     if (mongoose.connection.readyState !== 1) {
       return res.status(503).json({ message: "Database connection unavailable" });
+    }
+
+    if (!department || !date || !time || !patientName || !phone || !doctorId) {
+      return res.status(400).json({
+        message: "Department, date, time, patient name, phone, and doctor are required",
+      });
     }
 
     if (!departments[department]) {
@@ -69,32 +84,53 @@ router.post("/", async (req, res) => {
       });
     }
 
+    const doctor = await Doctor.findById(doctorId);
+
+    if (!doctor) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+
+    if (!doctor.isActive) {
+      return res.status(400).json({ message: "Selected doctor is not active" });
+    }
+
+    if (doctor.department !== department) {
+      return res.status(400).json({
+        message: "Selected doctor does not belong to this department",
+      });
+    }
+
+    const referenceId = `HSP-${Date.now()}`;
+
     const conflict = await Appointment.findOne({
       date,
       time,
-      department,
+      doctorId: doctor._id,
       status: { $ne: "cancelled" },
     });
 
     if (conflict) {
       return res.status(409).json({
-        message: "Time slot already booked",
+        message: "This doctor is already booked for that date and time",
       });
     }
 
-    const appointment = await Appointment.create({
-      referenceId: `HSP-${Date.now()}`,
-      patientId: `PAT-${Date.now()}`,
+    const appointment = new Appointment({
+      referenceId,
       patientName,
-      email,
-      doctor,
-      phone,
       department,
+      doctorId: doctor._id,
+      doctorName: doctor.fullName,
       date,
       time,
+      phone,
+      email,
       message,
       status: "scheduled",
+      createdBy: "patient",
     });
+
+    await appointment.save();
 
     try {
       await sendAppointmentSMS({
@@ -104,17 +140,17 @@ router.post("/", async (req, res) => {
         time,
         referenceId: appointment.referenceId,
       });
-    } catch {
+    } catch (error) {
       console.log("SMS skipped in presentation mode");
     }
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Appointment booked successfully",
       referenceId: appointment.referenceId,
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
 });
 
@@ -128,9 +164,9 @@ router.get("/", auth, async (req, res) => {
     }
 
     const appointments = await Appointment.find();
-    res.json(appointments);
+    return res.json(appointments);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 });
 
@@ -142,6 +178,7 @@ router.patch("/:id/status", auth, async (req, res) => {
     }
 
     const { status } = req.body;
+
     const appointment = await Appointment.findByIdAndUpdate(
       req.params.id,
       { status },
@@ -152,13 +189,13 @@ router.patch("/:id/status", auth, async (req, res) => {
       return res.status(404).json({ message: "Appointment not found" });
     }
 
-    res.json({
+    return res.json({
       success: true,
       message: "Appointment updated successfully",
       appointment,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 });
 
@@ -187,13 +224,13 @@ router.patch("/cancel", async (req, res) => {
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
       message: "Appointment cancelled successfully",
       referenceId: appointment.referenceId,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 });
 
@@ -243,14 +280,14 @@ router.patch("/reschedule", async (req, res) => {
     const conflict = await Appointment.findOne({
       date,
       time,
-      department: appointment.department,
+      doctorId: appointment.doctorId,
       status: { $ne: "cancelled" },
       _id: { $ne: appointment._id },
     });
 
     if (conflict) {
       return res.status(409).json({
-        message: "Time slot already booked for that date and time",
+        message: "This doctor is already booked for that date and time",
       });
     }
 
@@ -258,13 +295,13 @@ router.patch("/reschedule", async (req, res) => {
     appointment.time = time;
     await appointment.save();
 
-    res.json({
+    return res.json({
       success: true,
       message: "Appointment rescheduled successfully",
       referenceId: appointment.referenceId,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 });
 
@@ -285,18 +322,18 @@ router.post("/track", async (req, res) => {
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
       referenceId: appointment.referenceId,
       patientName: appointment.patientName,
       department: appointment.department,
-      doctor: appointment.doctor,
+      doctorName: appointment.doctorName,
       date: appointment.date,
       time: appointment.time,
       status: appointment.status,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 });
 

@@ -120,6 +120,10 @@
   min-height: 140px;
 }
 
+.error-text {
+  color: #c62828;
+}
+
 .appointment-form button[type="submit"] {
   grid-column: span 2;
   padding: 16px;
