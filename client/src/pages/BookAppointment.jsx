@@ -193,7 +193,8 @@ Status: ${data.status}`
       <section className="hero">
         <h1>BOOK AN APPOINTMENT</h1>
         <p>
-          Book an appointment with us today.
+          Schedule your visit with our specialists today. Pick your department, 
+          choose a suitable time, and confirm your appointment in seconds.
         </p>
       </section>
 
