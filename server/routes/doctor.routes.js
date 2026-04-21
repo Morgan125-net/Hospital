@@ -251,7 +251,6 @@ router.get("/dashboard", auth, role(["doctor"]), async (req, res) => {
 
     const appointments = await Appointment.find({
       doctorId: doctor._id,
-      status: { $in: ["scheduled", "confirmed"] },
     }).sort({ date: 1, time: 1 });
 
     res.json({

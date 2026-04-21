@@ -7,6 +7,7 @@ export default function StaffDashboard() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [bookingFilter, setBookingFilter] = useState("total");
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -41,19 +42,37 @@ export default function StaffDashboard() {
   }, [API_BASE]);
 
   const total = appointments.length;
+  const today = new Date().toISOString().split("T")[0];
+  const todaysBookings = appointments.filter((a) => a.date === today).length;
   const scheduled = appointments.filter(
     (a) => a.status === "scheduled"
   ).length;
   const cancelled = appointments.filter(
     (a) => a.status === "cancelled"
   ).length;
-  const confirmed = appointments.filter(
-    (a) => a.status === "confirmed"
+  const completed = appointments.filter(
+    (a) => a.status === "completed"
   ).length;
-  const latestAppointments = appointments.slice(0, 6);
+  const visibleAppointments = appointments.filter((appt) => {
+    if (bookingFilter === "today") return appt.date === today;
+    if (bookingFilter === "total") return true;
+    return appt.status === bookingFilter;
+  });
+  const latestAppointments = visibleAppointments.slice(
+    0,
+    bookingFilter === "total" ? 6 : visibleAppointments.length
+  );
+  const filterTitle = {
+    total: "Latest Appointments",
+    today: "Today's Bookings",
+    scheduled: "Scheduled Bookings",
+    cancelled: "Cancelled Bookings",
+    completed: "Completed Bookings",
+  }[bookingFilter];
 
   const statusClass = (status) => {
     if (status === "cancelled") return "bg-red-50 text-red-700 ring-red-100";
+    if (status === "completed") return "bg-cyan-50 text-cyan-700 ring-cyan-100";
     if (status === "confirmed") return "bg-emerald-50 text-emerald-700 ring-emerald-100";
     return "bg-amber-50 text-amber-700 ring-amber-100";
   };
@@ -88,33 +107,51 @@ export default function StaffDashboard() {
           </div>
         )}
 
-        <div className="grid gap-4 md:grid-cols-4">
-          <div className="rounded-xl bg-gradient-to-br from-cyan-600 to-blue-600 p-5 text-white shadow-xl">
-            <p className="text-sm font-semibold text-white/80">Total Bookings</p>
-            <h2 className="mt-3 text-4xl font-bold">{total}</h2>
-          </div>
-
-          <div className="rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 p-5 text-white shadow-xl">
-            <p className="text-sm font-semibold text-white/80">Scheduled</p>
-            <h2 className="mt-3 text-4xl font-bold">{scheduled}</h2>
-          </div>
-
-          <div className="rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 p-5 text-white shadow-xl">
-            <p className="text-sm font-semibold text-white/80">Confirmed</p>
-            <h2 className="mt-3 text-4xl font-bold">{confirmed}</h2>
-          </div>
-
-          <div className="rounded-xl bg-gradient-to-br from-red-500 to-rose-500 p-5 text-white shadow-xl">
-            <p className="text-sm font-semibold text-white/80">Cancelled</p>
-            <h2 className="mt-3 text-4xl font-bold">{cancelled}</h2>
-          </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <StaffStatCard
+            title="Today"
+            value={todaysBookings}
+            accent="from-sky-500 to-cyan-500"
+            active={bookingFilter === "today"}
+            onClick={() => setBookingFilter("today")}
+          />
+          <StaffStatCard
+            title="Scheduled"
+            value={scheduled}
+            accent="from-emerald-500 to-teal-500"
+            active={bookingFilter === "scheduled"}
+            onClick={() => setBookingFilter("scheduled")}
+          />
+          <StaffStatCard
+            title="Cancelled"
+            value={cancelled}
+            accent="from-red-500 to-rose-500"
+            active={bookingFilter === "cancelled"}
+            onClick={() => setBookingFilter("cancelled")}
+          />
+          <StaffStatCard
+            title="Completed"
+            value={completed}
+            accent="from-cyan-600 to-blue-600"
+            active={bookingFilter === "completed"}
+            onClick={() => setBookingFilter("completed")}
+          />
+          <StaffStatCard
+            title="Total Bookings"
+            value={total}
+            accent="from-indigo-600 to-blue-600"
+            active={bookingFilter === "total"}
+            onClick={() => setBookingFilter("total")}
+          />
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-cyan-100 bg-white shadow-xl">
           <div className="flex items-center justify-between border-b border-cyan-100 bg-gradient-to-r from-white to-cyan-50 px-6 py-5">
             <div>
-              <h2 className="text-xl font-bold text-slate-950">Latest Appointments</h2>
-              <p className="mt-1 text-sm text-slate-500">Most recent patient bookings</p>
+              <h2 className="text-xl font-bold text-slate-950">{filterTitle}</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Patient bookings for the selected card
+              </p>
             </div>
             <span className="rounded-full bg-cyan-100 px-3 py-1 text-sm font-semibold text-cyan-800">
               {loading ? "Loading" : `${latestAppointments.length} shown`}
@@ -166,5 +203,21 @@ export default function StaffDashboard() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* eslint-disable react/prop-types */
+function StaffStatCard({ title, value, accent, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-xl bg-gradient-to-br ${accent} p-5 text-left text-white shadow-xl transition hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-cyan-200 ${
+        active ? "ring-4 ring-slate-900/20" : ""
+      }`}
+    >
+      <p className="text-sm font-semibold text-white/80">{title}</p>
+      <h2 className="mt-3 text-4xl font-bold">{value}</h2>
+    </button>
   );
 }

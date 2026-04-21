@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getCurrentWeekDates, getWeekDateByDay } from "../utils/weekDates";
 
@@ -11,44 +11,71 @@ export default function DoctorDashboard() {
   const [appointments, setAppointments] = useState([]);
   const [totalAppointments, setTotalAppointments] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [bookingFilter, setBookingFilter] = useState("total");
+  const [updatingId, setUpdatingId] = useState("");
 
   const token = localStorage.getItem("token");
 
-  useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const response = await fetch(
-          `${API_BASE}/api/doctors/dashboard`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+  const fetchDashboard = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/doctors/dashboard`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-        const contentType = response.headers.get("content-type") || "";
-        const data = contentType.includes("application/json")
-          ? await response.json()
-          : null;
+      const contentType = response.headers.get("content-type") || "";
+      const data = contentType.includes("application/json")
+        ? await response.json()
+        : null;
 
-        if (!response.ok) {
-          throw new Error(data?.message || "Failed to load doctor dashboard");
-        }
-
-        setDoctor(data.doctor);
-        setAppointments(data.appointments || []);
-        setTotalAppointments(data.totalAppointments || 0);
-      } catch (error) {
-        console.error(error);
-        alert(error.message || "Error loading dashboard");
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to load doctor dashboard");
       }
-    };
 
-    fetchDashboard();
+      setDoctor(data.doctor);
+      setAppointments(data.appointments || []);
+      setTotalAppointments(data.totalAppointments || 0);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "Error loading dashboard");
+    } finally {
+      setLoading(false);
+    }
   }, [API_BASE, token]);
+
+  useEffect(() => {
+    fetchDashboard();
+  }, [fetchDashboard]);
+
+  const markCompleted = async (appointmentId) => {
+    try {
+      setUpdatingId(appointmentId);
+      const response = await fetch(
+        `${API_BASE}/api/appointments/${appointmentId}/status`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: "completed" }),
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.message || "Failed to update appointment");
+      }
+
+      await fetchDashboard();
+    } catch (error) {
+      alert(error.message || "Unable to mark appointment as completed");
+    } finally {
+      setUpdatingId("");
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -73,6 +100,20 @@ export default function DoctorDashboard() {
 
   const today = new Date().toISOString().split("T")[0];
   const todaysAppointments = appointments.filter((appt) => appt.date === today);
+  const scheduledAppointments = appointments.filter(
+    (appt) => appt.status === "scheduled"
+  );
+  const cancelledAppointments = appointments.filter(
+    (appt) => appt.status === "cancelled"
+  );
+  const completedAppointments = appointments.filter(
+    (appt) => appt.status === "completed"
+  );
+  const visibleAppointments = appointments.filter((appt) => {
+    if (bookingFilter === "today") return appt.date === today;
+    if (bookingFilter === "total") return true;
+    return appt.status === bookingFilter;
+  });
   const activeAvailability = (doctor.availability || []).filter(
     (slot) => slot.isAvailable
   ).length;
@@ -82,9 +123,18 @@ export default function DoctorDashboard() {
 
   const statusClass = (status) => {
     if (status === "cancelled") return "bg-red-50 text-red-700 ring-red-100";
+    if (status === "completed") return "bg-cyan-50 text-cyan-700 ring-cyan-100";
     if (status === "confirmed") return "bg-emerald-50 text-emerald-700 ring-emerald-100";
     return "bg-amber-50 text-amber-700 ring-amber-100";
   };
+
+  const tableTitle = {
+    total: "All Bookings",
+    today: "Today's Bookings",
+    scheduled: "Scheduled Bookings",
+    cancelled: "Cancelled Bookings",
+    completed: "Completed Bookings",
+  }[bookingFilter];
 
   return (
     <div className="min-h-screen bg-slate-100 p-6">
@@ -126,29 +176,49 @@ export default function DoctorDashboard() {
           </div>
         </section>
 
-        <div className="grid gap-4 md:grid-cols-3 mb-6">
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-medium text-slate-500">Total Appointments</p>
-            <h2 className="mt-3 text-4xl font-bold text-slate-950">
-              {totalAppointments}
-            </h2>
-          </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5 mb-6">
+          <DoctorStatCard
+            title="Today"
+            value={todaysAppointments.length}
+            tone="teal"
+            active={bookingFilter === "today"}
+            onClick={() => setBookingFilter("today")}
+          />
+          <DoctorStatCard
+            title="Scheduled"
+            value={scheduledAppointments.length}
+            tone="amber"
+            active={bookingFilter === "scheduled"}
+            onClick={() => setBookingFilter("scheduled")}
+          />
+          <DoctorStatCard
+            title="Cancelled"
+            value={cancelledAppointments.length}
+            tone="red"
+            active={bookingFilter === "cancelled"}
+            onClick={() => setBookingFilter("cancelled")}
+          />
+          <DoctorStatCard
+            title="Completed"
+            value={completedAppointments.length}
+            tone="cyan"
+            active={bookingFilter === "completed"}
+            onClick={() => setBookingFilter("completed")}
+          />
+          <DoctorStatCard
+            title="Total Bookings"
+            value={totalAppointments}
+            tone="slate"
+            active={bookingFilter === "total"}
+            onClick={() => setBookingFilter("total")}
+          />
+        </div>
 
-          <div className="rounded-xl border border-teal-100 bg-teal-50 p-5 shadow-sm">
-            <p className="text-sm font-medium text-teal-700">
-              Today&apos;s Appointments
-            </p>
-            <h2 className="mt-3 text-4xl font-bold text-teal-700">
-              {todaysAppointments.length}
-            </h2>
-          </div>
-
-          <div className="rounded-xl border border-blue-100 bg-blue-50 p-5 shadow-sm">
-            <p className="text-sm font-medium text-blue-700">Active Work Days</p>
-            <h2 className="mt-3 text-4xl font-bold text-blue-700">
-              {activeAvailability}
-            </h2>
-          </div>
+        <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50 p-5 shadow-sm">
+          <p className="text-sm font-medium text-blue-700">Active Work Days</p>
+          <h2 className="mt-3 text-4xl font-bold text-blue-700">
+            {activeAvailability}
+          </h2>
         </div>
 
         <div className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
@@ -212,16 +282,18 @@ export default function DoctorDashboard() {
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
           <div className="border-b border-slate-200 px-6 py-5">
             <h2 className="text-xl font-bold text-slate-950">
-              Upcoming Appointments
+              {tableTitle}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Patients assigned to your schedule
+              {visibleAppointments.length} booking
+              {visibleAppointments.length === 1 ? "" : "s"} assigned to your
+              schedule
             </p>
           </div>
 
-          {appointments.length > 0 ? (
+          {visibleAppointments.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px]">
+              <table className="w-full min-w-[900px]">
                 <thead className="bg-slate-50 text-left text-sm text-slate-500">
                   <tr>
                     <th className="px-6 py-4">Patient</th>
@@ -230,10 +302,11 @@ export default function DoctorDashboard() {
                     <th className="px-6 py-4">Time</th>
                     <th className="px-6 py-4">Phone</th>
                     <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {appointments.map((appt) => (
+                  {visibleAppointments.map((appt) => (
                     <tr key={appt._id} className="hover:bg-slate-50">
                       <td className="px-6 py-4 font-semibold text-slate-900">
                         {appt.patientName}
@@ -251,6 +324,25 @@ export default function DoctorDashboard() {
                           {appt.status}
                         </span>
                       </td>
+                      <td className="px-6 py-4">
+                        {appt.status === "completed" ? (
+                          <span className="text-sm font-semibold text-slate-400">
+                            Completed
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => markCompleted(appt._id)}
+                            disabled={
+                              updatingId === appt._id ||
+                              appt.status === "cancelled"
+                            }
+                            className="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:bg-slate-300"
+                          >
+                            {updatingId === appt._id ? "Saving..." : "Mark completed"}
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -262,5 +354,29 @@ export default function DoctorDashboard() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* eslint-disable react/prop-types */
+function DoctorStatCard({ title, value, tone, active, onClick }) {
+  const toneMap = {
+    teal: "border-teal-100 bg-teal-50 text-teal-700",
+    amber: "border-amber-100 bg-amber-50 text-amber-700",
+    red: "border-red-100 bg-red-50 text-red-700",
+    cyan: "border-cyan-100 bg-cyan-50 text-cyan-700",
+    slate: "border-slate-200 bg-white text-slate-950",
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-xl border p-5 text-left shadow-sm transition hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-teal-200 ${toneMap[tone]} ${
+        active ? "ring-4 ring-teal-200" : ""
+      }`}
+    >
+      <p className="text-sm font-medium opacity-80">{title}</p>
+      <h2 className="mt-3 text-4xl font-bold">{value}</h2>
+    </button>
   );
 }
