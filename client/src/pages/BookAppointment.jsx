@@ -22,7 +22,11 @@ const departments = [
 
 const formatDoctorName = (name) => {
   if (!name) return "Doctor";
-  return /^dr\.?\s/i.test(name) ? name : `Dr. ${name}`;
+
+  const cleanName = name.replace(/^dr\.?\s+/i, "").trim();
+  const firstName = cleanName.split(/\s+/)[0];
+
+  return `Doctor ${firstName}`;
 };
 
 export default function BookAppointment() {
