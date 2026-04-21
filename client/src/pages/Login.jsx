@@ -21,7 +21,11 @@ export default function Login() {
       }),
     });
 
-    const data = await response.json();
+    const contentType = response.headers.get("content-type") || "";
+    const data = contentType.includes("application/json")
+      ? await response.json()
+      : { message: "Backend returned a non-JSON response. Check VITE_API_URL." };
+
     return { response, data };
   };
 
@@ -55,7 +59,7 @@ export default function Login() {
       }
     } catch (error) {
       console.error(error);
-      alert("Server error");
+      alert(error.message || "Server error");
     }
   };
 

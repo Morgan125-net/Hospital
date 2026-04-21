@@ -83,6 +83,31 @@ router.delete("/:id", auth, role(["admin"]), async (req, res) => {
   }
 });
 
+router.patch("/:id/password", auth, role(["admin"]), async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    if (!password || password.length < 4) {
+      return res.status(400).json({
+        message: "Password must be at least 4 characters",
+      });
+    }
+
+    const doctor = await Doctor.findById(req.params.id);
+
+    if (!doctor) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+
+    doctor.password = await bcrypt.hash(password, 10);
+    await doctor.save();
+
+    res.json({ message: "Password updated successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update password" });
+  }
+});
+
 // Update doctor weekly availability
 router.patch("/availability", auth, role(["doctor"]), async (req, res) => {
   try {

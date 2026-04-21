@@ -208,6 +208,32 @@ router.delete("/users/:id", auth, role(['admin']), (req, res) => {
   }
 });
 
+router.patch("/users/:id/password", auth, role(['admin']), async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    if (!password || password.length < 4) {
+      return res.status(400).json({
+        message: "Password must be at least 4 characters",
+      });
+    }
+
+    const users = getUsers();
+    const userToUpdate = users.find((u) => u.id === req.params.id);
+
+    if (!userToUpdate) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    userToUpdate.password = await bcrypt.hash(password, 10);
+    saveUsers(users);
+
+    res.json({ message: "Password updated successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update password" });
+  }
+});
+
 
 
 module.exports = router;
