@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getCurrentWeekDates, getWeekDateByDay } from "../utils/weekDates";
 
 export default function DoctorDashboard() {
   const navigate = useNavigate();
@@ -75,6 +76,9 @@ export default function DoctorDashboard() {
   const activeAvailability = (doctor.availability || []).filter(
     (slot) => slot.isAvailable
   ).length;
+  const weekDates = getCurrentWeekDates();
+  const weekStart = weekDates[0];
+  const weekEnd = weekDates[weekDates.length - 1];
 
   const statusClass = (status) => {
     if (status === "cancelled") return "bg-red-50 text-red-700 ring-red-100";
@@ -149,38 +153,56 @@ export default function DoctorDashboard() {
 
         <div className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
           <div className="border-b border-slate-200 px-6 py-5">
-            <h2 className="text-xl font-bold text-slate-950">
-              Weekly Availability
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Your working windows across the week
-            </p>
+            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-950">
+                  Weekly Availability
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Your working windows for {weekStart.label} - {weekEnd.label}
+                </p>
+              </div>
+              <span className="rounded-lg bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-700 ring-1 ring-teal-100">
+                Current week
+              </span>
+            </div>
           </div>
 
           {doctor.availability && doctor.availability.length > 0 ? (
             <div className="grid gap-4 p-6 md:grid-cols-2">
-              {doctor.availability.map((slot, index) => (
-                <div
-                  key={index}
-                  className="rounded-xl border border-slate-200 bg-slate-50 p-4"
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <p className="font-semibold text-slate-900">{slot.day}</p>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-bold ${
-                        slot.isAvailable
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {slot.isAvailable ? "Available" : "Unavailable"}
-                    </span>
+              {doctor.availability.map((slot, index) => {
+                const weekDate = getWeekDateByDay(weekDates, slot.day);
+
+                return (
+                  <div
+                    key={index}
+                    className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="font-semibold text-slate-900">
+                          {slot.day}
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-slate-500">
+                          {weekDate?.label}
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold ${
+                          slot.isAvailable
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {slot.isAvailable ? "Available" : "Unavailable"}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-slate-600">
+                      {slot.startTime} - {slot.endTime}
+                    </p>
                   </div>
-                  <p className="mt-2 text-slate-600">
-                    {slot.startTime} - {slot.endTime}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p className="p-6 text-slate-500">No availability set yet.</p>

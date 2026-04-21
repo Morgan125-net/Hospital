@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getCurrentWeekDates, getWeekDateByDay } from "../utils/weekDates";
 
 const defaultAvailability = [
   { day: "Monday", startTime: "", endTime: "", isAvailable: true },
@@ -17,6 +18,9 @@ export default function DoctorAvailability() {
     import.meta.env.VITE_API_URL ||
     (window.location.hostname === "localhost" ? "http://localhost:5000" : "");
   const token = localStorage.getItem("token");
+  const weekDates = getCurrentWeekDates();
+  const weekStart = weekDates[0];
+  const weekEnd = weekDates[weekDates.length - 1];
 
   const [availability, setAvailability] = useState(defaultAvailability);
   const [date, setDate] = useState("");
@@ -124,69 +128,84 @@ export default function DoctorAvailability() {
           className="mb-6 overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-teal-100"
         >
           <div className="bg-gradient-to-r from-teal-700 to-cyan-700 p-6 text-white">
-            <h2 className="text-2xl font-bold">Weekly Working Hours</h2>
-            <p className="mt-1 text-teal-50">
-              Choose the days and hours patients can book you.
-            </p>
+            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Weekly Working Hours</h2>
+                <p className="mt-1 text-teal-50">
+                  Choose the days and hours patients can book you.
+                </p>
+              </div>
+
+              <p className="rounded-lg bg-white/15 px-4 py-2 text-sm font-semibold text-teal-50 ring-1 ring-white/20">
+                {weekStart.label} - {weekEnd.label}
+              </p>
+            </div>
           </div>
 
           <div className="space-y-4 p-6">
-            {availability.map((slot, index) => (
-              <div
-                key={slot.day}
-                className={`grid items-center gap-4 rounded-xl border p-4 md:grid-cols-4 ${
-                  slot.isAvailable
-                    ? "border-teal-100 bg-gradient-to-r from-teal-50 to-sky-50"
-                    : "border-rose-100 bg-rose-50"
-                }`}
-              >
-                <div>
-                  <p className="font-bold text-slate-950">{slot.day}</p>
-                  <p
-                    className={`mt-1 text-sm font-semibold ${
-                      slot.isAvailable ? "text-teal-700" : "text-rose-700"
-                    }`}
-                  >
-                    {slot.isAvailable ? "Open for bookings" : "Closed"}
-                  </p>
-                </div>
+            {availability.map((slot, index) => {
+              const weekDate = getWeekDateByDay(weekDates, slot.day);
 
-                <input
-                  type="time"
-                  value={slot.startTime}
-                  onChange={(e) =>
-                    handleAvailabilityChange(index, "startTime", e.target.value)
-                  }
-                  className="rounded-xl border border-teal-100 bg-white px-4 py-3 font-semibold text-slate-900 outline-none focus:border-teal-500 disabled:bg-slate-100 disabled:text-slate-400"
-                  disabled={!slot.isAvailable}
-                />
+              return (
+                <div
+                  key={slot.day}
+                  className={`grid items-center gap-4 rounded-xl border p-4 md:grid-cols-4 ${
+                    slot.isAvailable
+                      ? "border-teal-100 bg-gradient-to-r from-teal-50 to-sky-50"
+                      : "border-rose-100 bg-rose-50"
+                  }`}
+                >
+                  <div>
+                    <p className="font-bold text-slate-950">{slot.day}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">
+                      {weekDate?.label}
+                    </p>
+                    <p
+                      className={`mt-1 text-sm font-semibold ${
+                        slot.isAvailable ? "text-teal-700" : "text-rose-700"
+                      }`}
+                    >
+                      {slot.isAvailable ? "Open for bookings" : "Closed"}
+                    </p>
+                  </div>
 
-                <input
-                  type="time"
-                  value={slot.endTime}
-                  onChange={(e) =>
-                    handleAvailabilityChange(index, "endTime", e.target.value)
-                  }
-                  className="rounded-xl border border-teal-100 bg-white px-4 py-3 font-semibold text-slate-900 outline-none focus:border-teal-500 disabled:bg-slate-100 disabled:text-slate-400"
-                  disabled={!slot.isAvailable}
-                />
-
-                <label className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 font-semibold text-slate-700 shadow-sm">
                   <input
-                    type="checkbox"
-                    checked={slot.isAvailable}
+                    type="time"
+                    value={slot.startTime}
                     onChange={(e) =>
-                      handleAvailabilityChange(
-                        index,
-                        "isAvailable",
-                        e.target.checked
-                      )
+                      handleAvailabilityChange(index, "startTime", e.target.value)
                     }
+                    className="rounded-xl border border-teal-100 bg-white px-4 py-3 font-semibold text-slate-900 outline-none focus:border-teal-500 disabled:bg-slate-100 disabled:text-slate-400"
+                    disabled={!slot.isAvailable}
                   />
-                  Available
-                </label>
-              </div>
-            ))}
+
+                  <input
+                    type="time"
+                    value={slot.endTime}
+                    onChange={(e) =>
+                      handleAvailabilityChange(index, "endTime", e.target.value)
+                    }
+                    className="rounded-xl border border-teal-100 bg-white px-4 py-3 font-semibold text-slate-900 outline-none focus:border-teal-500 disabled:bg-slate-100 disabled:text-slate-400"
+                    disabled={!slot.isAvailable}
+                  />
+
+                  <label className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 font-semibold text-slate-700 shadow-sm">
+                    <input
+                      type="checkbox"
+                      checked={slot.isAvailable}
+                      onChange={(e) =>
+                        handleAvailabilityChange(
+                          index,
+                          "isAvailable",
+                          e.target.checked
+                        )
+                      }
+                    />
+                    Available
+                  </label>
+                </div>
+              );
+            })}
 
           <button
             type="submit"
