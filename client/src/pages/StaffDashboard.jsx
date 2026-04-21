@@ -100,7 +100,7 @@ export default function StaffDashboard() {
               <h1 className="mt-3 text-4xl font-bold">Reception Command Center</h1>
               <p className="mt-3 max-w-2xl text-slate-200">
                 Track bookings, spot urgent schedule changes, and keep patient
-                flow tidy from one clean view.
+                flow tidy.
               </p>
             </div>
 

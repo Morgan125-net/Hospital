@@ -253,7 +253,7 @@ export default function AdminUsers() {
           </p>
           <h1 className="mt-3 text-4xl font-bold">Create Account</h1>
           <p className="mt-3 text-slate-200">
-            Admin can create staff, admin, and doctor portal accounts.
+            Create Admin, Staff, and Doctor portal accounts.
           </p>
         </div>
 
