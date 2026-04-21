@@ -13,6 +13,7 @@ export default function DoctorDashboard() {
   const [loading, setLoading] = useState(true);
   const [bookingFilter, setBookingFilter] = useState("total");
   const [updatingId, setUpdatingId] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const token = localStorage.getItem("token");
 
@@ -110,9 +111,22 @@ export default function DoctorDashboard() {
     (appt) => appt.status === "completed"
   );
   const visibleAppointments = appointments.filter((appt) => {
-    if (bookingFilter === "today") return appt.date === today;
-    if (bookingFilter === "total") return true;
-    return appt.status === bookingFilter;
+    let matches = true;
+
+    if (bookingFilter === "today") {
+      matches = appt.date === today;
+    } else if (bookingFilter !== "total") {
+      matches = appt.status === bookingFilter;
+    }
+
+    if (matches && searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      matches =
+        (appt.patientName && appt.patientName.toLowerCase().includes(term)) ||
+        (appt.phone && appt.phone.includes(term));
+    }
+
+    return matches;
   });
   const activeAvailability = (doctor.availability || []).filter(
     (slot) => slot.isAvailable
@@ -289,6 +303,13 @@ export default function DoctorDashboard() {
               {visibleAppointments.length === 1 ? "" : "s"} assigned to your
               schedule
             </p>
+            <input
+              type="text"
+              placeholder="Search by patient name or phone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="mt-4 w-full rounded-lg border border-slate-200 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
+            />
           </div>
 
           {visibleAppointments.length > 0 ? (

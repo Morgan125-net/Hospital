@@ -7,6 +7,7 @@ export default function Dashboard() {
   const [appointments, setAppointments] = useState([]);
   const [department, setDepartment] = useState("All");
   const [bookingFilter, setBookingFilter] = useState("total");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const fetchAppointments = useCallback(async () => {
     try {
@@ -54,18 +55,29 @@ export default function Dashboard() {
   };
 
   const visibleAppointments = useMemo(() => {
+    let filtered = filteredAppointments;
+
     if (bookingFilter === "today") {
-      return filteredAppointments.filter((appt) => appt.date === today);
+      filtered = filtered.filter((appt) => appt.date === today);
+    } else if (bookingFilter !== "total") {
+      filtered = filtered.filter((appt) => appt.status === bookingFilter);
     }
 
-    if (bookingFilter === "total") return filteredAppointments;
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (appt) =>
+          (appt.patientName && appt.patientName.toLowerCase().includes(term)) ||
+          (appt.phone && appt.phone.includes(term))
+      );
+    }
 
-    return filteredAppointments.filter((appt) => appt.status === bookingFilter);
-  }, [bookingFilter, filteredAppointments, today]);
+    return filtered;
+  }, [bookingFilter, filteredAppointments, today, searchTerm]);
 
-  const displayedAppointments = [...visibleAppointments]
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, bookingFilter === "total" ? 5 : visibleAppointments.length);
+  const displayedAppointments = [...visibleAppointments].sort(
+    (a, b) => new Date(b.date) - new Date(a.date)
+  );
 
   const filterTitle = {
     total: "Recent Bookings",
@@ -90,17 +102,26 @@ export default function Dashboard() {
             </p>
           </div>
 
-          <select
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-            className="rounded-xl border border-white/20 bg-white/15 px-4 py-3 font-semibold text-white backdrop-blur"
-          >
-            {departments.map((dept) => (
-              <option key={dept} value={dept} className="text-slate-900">
-                {dept}
-              </option>
-            ))}
-          </select>
+          <div className="flex flex-col gap-3 lg:flex-row lg:gap-4">
+            <input
+              type="text"
+              placeholder="Search by name or phone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="rounded-xl border border-white/20 bg-white/15 px-4 py-3 font-semibold text-white placeholder-white/50 backdrop-blur focus:outline-none focus:ring-2 focus:ring-white/30"
+            />
+            <select
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              className="rounded-xl border border-white/20 bg-white/15 px-4 py-3 font-semibold text-white backdrop-blur"
+            >
+              {departments.map((dept) => (
+                <option key={dept} value={dept} className="text-slate-900">
+                  {dept}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 

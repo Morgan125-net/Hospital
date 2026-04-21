@@ -8,6 +8,7 @@ export default function StaffDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [bookingFilter, setBookingFilter] = useState("total");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -54,14 +55,24 @@ export default function StaffDashboard() {
     (a) => a.status === "completed"
   ).length;
   const visibleAppointments = appointments.filter((appt) => {
-    if (bookingFilter === "today") return appt.date === today;
-    if (bookingFilter === "total") return true;
-    return appt.status === bookingFilter;
+    let matches = true;
+
+    if (bookingFilter === "today") {
+      matches = appt.date === today;
+    } else if (bookingFilter !== "total") {
+      matches = appt.status === bookingFilter;
+    }
+
+    if (matches && searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      matches =
+        (appt.patientName && appt.patientName.toLowerCase().includes(term)) ||
+        (appt.phone && appt.phone.includes(term));
+    }
+
+    return matches;
   });
-  const latestAppointments = visibleAppointments.slice(
-    0,
-    bookingFilter === "total" ? 6 : visibleAppointments.length
-  );
+  const latestAppointments = visibleAppointments;
   const filterTitle = {
     total: "Latest Appointments",
     today: "Today's Bookings",
@@ -156,6 +167,16 @@ export default function StaffDashboard() {
             <span className="rounded-full bg-cyan-100 px-3 py-1 text-sm font-semibold text-cyan-800">
               {loading ? "Loading" : `${latestAppointments.length} shown`}
             </span>
+          </div>
+
+          <div className="border-b border-cyan-100 px-6 py-4">
+            <input
+              type="text"
+              placeholder="Search by patient name or phone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            />
           </div>
 
           <div className="overflow-x-auto">
