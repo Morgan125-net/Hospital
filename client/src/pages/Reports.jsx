@@ -1,11 +1,52 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+const readJson = async (response) => {
+  const contentType = response.headers.get("content-type") || "";
+  return contentType.includes("application/json") ? response.json() : null;
+};
 
 export default function Reports() {
+  const API_BASE =
+    import.meta.env.VITE_API_URL ||
+    (window.location.hostname === "localhost" ? "http://localhost:5000" : "");
   const [department, setDepartment] = useState("All");
   const [status, setStatus] = useState("All");
   const [range, setRange] = useState("today");
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const appointments = JSON.parse(localStorage.getItem("appointments") || "[]");
+  const fetchAppointments = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_BASE}/api/appointments`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to load reports");
+      }
+
+      setAppointments(Array.isArray(data) ? data : []);
+    } catch (fetchError) {
+      console.error(fetchError);
+      setError(fetchError.message || "Unable to load reports");
+      setAppointments([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [API_BASE]);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
 
   const isInRange = useCallback((dateStr) => {
     const today = new Date();
@@ -29,6 +70,12 @@ export default function Reports() {
     });
   }, [appointments, department, status, isInRange]);
 
+  const escapeCsvValue = (value) => {
+    const text = String(value ?? "");
+    if (!/[",\n]/.test(text)) return text;
+    return `"${text.replaceAll('"', '""')}"`;
+  };
+
   const exportCSV = () => {
     const headers = ["Patient", "Department", "Date", "Time", "Status"];
     const rows = filtered.map((a) => [
@@ -40,7 +87,7 @@ export default function Reports() {
     ]);
 
     const csv = [headers, ...rows]
-      .map((row) => row.join(","))
+      .map((row) => row.map(escapeCsvValue).join(","))
       .join("\n");
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -71,6 +118,7 @@ export default function Reports() {
           </div>
           <button
             onClick={exportCSV}
+            disabled={loading || filtered.length === 0}
             className="rounded-xl bg-white px-6 py-3 font-semibold text-indigo-950 shadow-lg hover:bg-rose-50"
           >
             Export CSV
@@ -107,8 +155,17 @@ export default function Reports() {
           <option>All</option>
           <option>scheduled</option>
           <option>cancelled</option>
+          <option>completed</option>
+          <option>confirmed</option>
+          <option>no-show</option>
         </select>
       </div>
+
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+          {error}
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-xl">
         <table className="w-full min-w-[700px]">
@@ -122,19 +179,27 @@ export default function Reports() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((a, i) => (
-              <tr key={i} className="border-b border-slate-100 hover:bg-indigo-50">
-                <td className="p-4 font-semibold text-slate-900">{a.patientName}</td>
-                <td className="p-4">{a.department}</td>
-                <td className="p-4">{a.date}</td>
-                <td className="p-4">{a.time}</td>
-                <td className="p-4">
-                  <span className="rounded-full bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-700">
-                    {a.status}
-                  </span>
+            {filtered.length > 0 ? (
+              filtered.map((a, i) => (
+                <tr key={a._id || i} className="border-b border-slate-100 hover:bg-indigo-50">
+                  <td className="p-4 font-semibold text-slate-900">{a.patientName}</td>
+                  <td className="p-4">{a.department}</td>
+                  <td className="p-4">{a.date}</td>
+                  <td className="p-4">{a.time}</td>
+                  <td className="p-4">
+                    <span className="rounded-full bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-700">
+                      {a.status}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="5" className="p-8 text-center text-slate-400">
+                  {loading ? "Loading reports..." : "No report records found"}
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>

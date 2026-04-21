@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getCurrentWeekDates, getWeekDateByDay } from "../utils/weekDates";
 
@@ -12,6 +12,27 @@ const defaultAvailability = [
   { day: "Sunday", startTime: "", endTime: "", isAvailable: false },
 ];
 
+const readJson = async (response) => {
+  const contentType = response.headers.get("content-type") || "";
+  return contentType.includes("application/json") ? response.json() : null;
+};
+
+const mergeAvailability = (savedAvailability = []) =>
+  defaultAvailability.map((defaultSlot) => {
+    const savedSlot = savedAvailability.find(
+      (slot) => slot.day === defaultSlot.day
+    );
+
+    return savedSlot
+      ? {
+          ...defaultSlot,
+          startTime: savedSlot.startTime || "",
+          endTime: savedSlot.endTime || "",
+          isAvailable: Boolean(savedSlot.isAvailable),
+        }
+      : defaultSlot;
+  });
+
 export default function DoctorAvailability() {
   const navigate = useNavigate();
   const API_BASE =
@@ -23,6 +44,8 @@ export default function DoctorAvailability() {
   const weekEnd = weekDates[weekDates.length - 1];
 
   const [availability, setAvailability] = useState(defaultAvailability);
+  const [unavailableDates, setUnavailableDates] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [date, setDate] = useState("");
   const [reason, setReason] = useState("");
 
@@ -32,10 +55,35 @@ export default function DoctorAvailability() {
     setAvailability(updated);
   };
 
-  const readJson = async (response) => {
-    const contentType = response.headers.get("content-type") || "";
-    return contentType.includes("application/json") ? response.json() : null;
-  };
+  const fetchAvailability = useCallback(async () => {
+    try {
+      setLoading(true);
+
+      const response = await fetch(`${API_BASE}/api/doctors/dashboard`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to load availability");
+      }
+
+      setAvailability(mergeAvailability(data?.doctor?.availability || []));
+      setUnavailableDates(data?.doctor?.unavailableDates || []);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "Error loading availability");
+    } finally {
+      setLoading(false);
+    }
+  }, [API_BASE, token]);
+
+  useEffect(() => {
+    fetchAvailability();
+  }, [fetchAvailability]);
 
   const saveAvailability = async (e) => {
     e.preventDefault();
@@ -89,6 +137,7 @@ export default function DoctorAvailability() {
       }
 
       alert("Unavailable date added successfully");
+      setUnavailableDates(data?.unavailableDates || unavailableDates);
       setDate("");
       setReason("");
     } catch (error) {
@@ -143,6 +192,12 @@ export default function DoctorAvailability() {
           </div>
 
           <div className="space-y-4 p-6">
+            {loading && (
+              <p className="rounded-xl bg-teal-50 p-4 font-semibold text-teal-700">
+                Loading saved availability...
+              </p>
+            )}
+
             {availability.map((slot, index) => {
               const weekDate = getWeekDateByDay(weekDates, slot.day);
 
@@ -252,6 +307,27 @@ export default function DoctorAvailability() {
           >
             Add Unavailable Date
           </button>
+
+            {unavailableDates.length > 0 && (
+              <div className="md:col-span-2 rounded-xl bg-rose-50 p-4">
+                <p className="mb-3 font-bold text-rose-900">
+                  Saved Unavailable Dates
+                </p>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {unavailableDates.map((item) => (
+                    <div
+                      key={`${item.date}-${item.reason}`}
+                      className="rounded-lg bg-white px-4 py-3 text-sm text-slate-700 shadow-sm"
+                    >
+                      <span className="font-semibold text-slate-950">
+                        {item.date}
+                      </span>
+                      {item.reason ? ` - ${item.reason}` : ""}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </form>
       </div>

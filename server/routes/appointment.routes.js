@@ -21,11 +21,60 @@ const departments = {
 };
 
 const validateTime = (time) => {
+  if (!time || typeof time !== "string") return false;
   const [hour, minute] = time.split(":").map(Number);
   if (isNaN(hour) || isNaN(minute)) return false;
   if (hour < 8 || hour >= 17) return false;
   if (![0, 30].includes(minute)) return false;
   return true;
+};
+
+const portalRoles = ["admin", "staff", "doctor"];
+const appointmentStatuses = [
+  "scheduled",
+  "completed",
+  "cancelled",
+  "no-show",
+  "confirmed",
+];
+
+const getWeekday = (date) =>
+  date.toLocaleDateString("en-US", {
+    weekday: "long",
+  });
+
+const isDoctorAvailable = (doctor, date, time) => {
+  const selectedDate = new Date(date);
+
+  if (Number.isNaN(selectedDate.getTime())) {
+    return false;
+  }
+
+  const weekday = getWeekday(selectedDate);
+  const availability = doctor.availability || [];
+  const unavailableDates = doctor.unavailableDates || [];
+
+  const hasWorkingSlot = availability.some(
+    (slot) =>
+      slot.day === weekday &&
+      slot.isAvailable &&
+      time >= slot.startTime &&
+      time < slot.endTime
+  );
+
+  const isBlockedDate = unavailableDates.some((item) => item.date === date);
+
+  return hasWorkingSlot && !isBlockedDate;
+};
+
+const canManageAppointments = (user) => portalRoles.includes(user?.role);
+
+const canAccessAppointment = (user, appointment) => {
+  if (["admin", "staff"].includes(user?.role)) return true;
+  if (user?.role === "doctor") {
+    return String(appointment.doctorId) === String(user.id);
+  }
+  return false;
 };
 
 // ===============================
@@ -100,6 +149,12 @@ router.post("/", async (req, res) => {
       });
     }
 
+    if (!isDoctorAvailable(doctor, date, time)) {
+      return res.status(409).json({
+        message: "Selected doctor is not available for that date and time",
+      });
+    }
+
     const referenceId = `HSP-${Date.now()}`;
 
     const conflict = await Appointment.findOne({
@@ -159,11 +214,20 @@ router.post("/", async (req, res) => {
 // ===============================
 router.get("/", auth, async (req, res) => {
   try {
+    if (!canManageAppointments(req.user)) {
+      return res.status(403).json({ message: "Forbidden: insufficient rights" });
+    }
+
     if (mongoose.connection.readyState !== 1) {
       return res.status(503).json({ message: "Database connection unavailable" });
     }
 
-    const appointments = await Appointment.find();
+    const query =
+      req.user.role === "doctor" ? { doctorId: req.user.id } : {};
+    const appointments = await Appointment.find(query).sort({
+      date: -1,
+      time: -1,
+    });
     return res.json(appointments);
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -173,21 +237,34 @@ router.get("/", auth, async (req, res) => {
 // update appointment status
 router.patch("/:id/status", auth, async (req, res) => {
   try {
+    if (!canManageAppointments(req.user)) {
+      return res.status(403).json({ message: "Forbidden: insufficient rights" });
+    }
+
     if (mongoose.connection.readyState !== 1) {
       return res.status(503).json({ message: "Database connection unavailable" });
     }
 
     const { status } = req.body;
 
-    const appointment = await Appointment.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    );
+    if (!appointmentStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid appointment status" });
+    }
+
+    const appointment = await Appointment.findById(req.params.id);
 
     if (!appointment) {
       return res.status(404).json({ message: "Appointment not found" });
     }
+
+    if (!canAccessAppointment(req.user, appointment)) {
+      return res.status(403).json({ message: "Forbidden: insufficient rights" });
+    }
+
+    appointment.status = status;
+    appointment.updatedBy = req.user.id || "";
+    appointment.updatedRole = req.user.role || "";
+    await appointment.save();
 
     return res.json({
       success: true,
@@ -274,6 +351,26 @@ router.patch("/reschedule", async (req, res) => {
     if (!appointment) {
       return res.status(404).json({
         message: "Appointment not found. Check reference ID and phone number.",
+      });
+    }
+
+    if (appointment.status === "cancelled") {
+      return res.status(400).json({
+        message: "Cancelled appointments cannot be rescheduled",
+      });
+    }
+
+    const doctor = await Doctor.findById(appointment.doctorId);
+
+    if (!doctor || !doctor.isActive) {
+      return res.status(400).json({
+        message: "Assigned doctor is not available for rescheduling",
+      });
+    }
+
+    if (!isDoctorAvailable(doctor, date, time)) {
+      return res.status(409).json({
+        message: "Selected doctor is not available for that date and time",
       });
     }
 
