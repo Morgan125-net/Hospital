@@ -20,6 +20,11 @@ const departments = [
   "Orthopedic",
 ];
 
+const formatDoctorName = (name) => {
+  if (!name) return "Doctor";
+  return /^dr\.?\s/i.test(name) ? name : `Dr. ${name}`;
+};
+
 export default function BookAppointment() {
   const API_BASE = import.meta.env.VITE_API_URL || "";
   const [mode, setMode] = useState("book");
@@ -347,7 +352,7 @@ Status: ${data.status}`
                 <option value="">Select doctor</option>
                 {availableDoctors.map((doc) => (
                   <option key={doc._id} value={doc._id}>
-                    {doc.fullName}
+                    {formatDoctorName(doc.fullName)}
                   </option>
                 ))}
               </select>
