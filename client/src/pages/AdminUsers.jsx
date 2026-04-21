@@ -359,7 +359,7 @@ export default function AdminUsers() {
           <thead className="bg-emerald-50">
             <tr className="text-left text-emerald-900">
               <th className="px-6 py-4">Name</th>
-              <th className="px-6 py-4">Department</th>
+              <th className="px-6 py-4">Role</th>
             </tr>
           </thead>
 
@@ -374,8 +374,8 @@ export default function AdminUsers() {
                   <td className="px-6 py-4 font-semibold text-slate-900">
                     {account.name}
                   </td>
-                  <td className="px-6 py-4 text-slate-600">
-                    {account.department || "-"}
+                  <td className="px-6 py-4 capitalize text-slate-600">
+                    {account.role || "-"}
                   </td>
                 </tr>
               ))
