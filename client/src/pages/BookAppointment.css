@@ -4,6 +4,7 @@
 
 .appointment-page {
   width: 100%;
+  min-width: 1024px;
   min-height: 100vh;
   background: #f5f7fb;
   font-family: Arial, sans-serif;
