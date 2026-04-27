@@ -138,8 +138,7 @@ export default function Login() {
                 Welcome back to your hospital workspace
               </h1>
               <p className="mt-4 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
-                Manage appointments, care teams, and daily operations from one
-                secure dashboard designed for smooth hospital workflows.
+                Manage appointments, care teams, and daily operations for smooth hospital workflows.
               </p>
 
               <div className="mt-8">
