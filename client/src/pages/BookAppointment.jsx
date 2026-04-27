@@ -248,7 +248,7 @@ Status: ${data.status}`
         <h1>BOOK AN APPOINTMENT</h1>
         <p>
           Schedule your visit with our specialists today. Pick your department,
-          choose a suitable time, and confirm your appointment in seconds.
+          choose a suitable time and confirm your appointment in seconds.
         </p>
       </section>
 
